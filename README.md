@@ -2,10 +2,10 @@
 
 This is ICT-4354 Software Engineering Project, planned by Team_VOID()
 <br>
-##Author:
+## Author:
 <br>
-Avik Halder
+- Avik Halder
 <br>
-Akibul Hasan Anik
+- Akibul Hasan Anik
 <br>
-Hrithik Das
+- Hrithik Das
