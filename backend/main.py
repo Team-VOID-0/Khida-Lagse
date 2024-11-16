@@ -162,6 +162,34 @@ def login(login_user: schemas.CheckUser, db: Session = Depends(get_db)):
                 return {"detail": "Activate your account by using OTP"}  
             
 
+@app.post("/user_forget_password/", tags=["User Login"])
+def user_forget_password(forget_user_password: schemas.UserForgetPassword, db: Session = Depends(get_db)):
+    check_user_mail = db.query(models.User).filter(models.User.email == forget_user_password.email).first()
+    if check_user_mail is not None:
+        if check_user_mail.is_active == "1":
+            check_user_password = db.query(models.Login).filter(models.Login.id == check_user_mail.id).first()
+            salt = bcrypt.gensalt()
+            hashed_password = bcrypt.hashpw(forget_user_password.password.encode(), salt)
+            check_user_mail.is_active = "0"
+            db.commit()
+            check_user_password.password = hashed_password
+            db.commit()
+            user_otp = ""
+            for i in range(5):
+                user_otp += str(random.randint(0,9))
+            send_otp(forget_user_password.email, user_otp)
+            new_user_otp = models.OTP(email = forget_user_password.email, 
+                                    otp = user_otp)
+            db.add(new_user_otp)
+            db.commit()
+            db.refresh(new_user_otp)
+            return {"detail": "OTP Sent"}
+        else:
+            return {"detail": "No account on this email"}
+    else:
+        return {"detail": "No account on this email"}
+    
+    
 def send_otp(email, otp):
     server = smtplib.SMTP('smtp.gmail.com', 587)
     server.starttls()
