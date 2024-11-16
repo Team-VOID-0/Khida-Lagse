@@ -6,6 +6,10 @@ import models, schemas
 from database import engine, SessionLocal
 from fastapi.middleware.cors import CORSMiddleware
 import random
+import smtplib
+from email.message import EmailMessage
+from datetime import datetime, timedelta, timezone
+from typing import Union
 
 
 app = FastAPI()
@@ -73,4 +77,33 @@ def create_user(requested_user: schemas.UserBase, db: Session = Depends(get_db))
         db.add(new_user_password)
         db.commit()
         db.refresh(new_user_password)
+
+        user_otp = ""
+        for i in range(5):
+            user_otp += str(random.randint(0,9))
+        send_otp(requested_user.email, user_otp)
+        new_user_otp = models.OTP(email = requested_user.email, 
+                                  otp = user_otp)
+        db.add(new_user_otp)
+        db.commit()
+        db.refresh(new_user_otp)
+        return {"detail": "OTP Sent"}
+    
+
+def send_otp(email, otp):
+    server = smtplib.SMTP('smtp.gmail.com', 587)
+    server.starttls()
+
+    from_mail = 'justtest280@gmail.com'
+    server.login(from_mail, 'bigd fnsb norh byzj')
+    to_mail = email
+
+    msg = EmailMessage()
+    msg['Subject'] = "OTP verification"
+    msg['From'] = from_mail
+    msg['TO'] = to_mail
+
+    msg.set_content("Your OTP is: " + otp)
+
+    server.send_message(msg)
 
