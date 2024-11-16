@@ -90,6 +90,44 @@ def create_user(requested_user: schemas.UserBase, db: Session = Depends(get_db))
         return {"detail": "OTP Sent"}
     
 
+@app.get("/user_verify_otp/{email}/{otp}", tags=["User Registration"])
+def verify_otp(email, otp, db: Session = Depends(get_db)):
+    check_otp = db.query(models.OTP).filter(models.OTP.email == email).first()
+    if check_otp is not None:
+        if check_otp.otp == otp:
+            activate = db.query(models.User).filter(models.User.email == check_otp.email).first()
+            if activate is not None:
+                activate.is_active = "1"
+                db.commit()
+                db.query(models.OTP).filter(models.OTP.email == email).delete()
+                db.commit()
+                return {"detail": "OTP used"}
+        else:
+            return {"detail": "Wrong OTP"}
+    else:
+        return {"detail": "No such user"}
+    
+
+@app.get("/user_resend_otp/{email}", tags=["User Registration"])
+def verify_otp(email, db: Session = Depends(get_db)):
+    check_otp = db.query(models.OTP).filter(models.OTP.email == email).first()
+    if check_otp is not None:
+        db.query(models.OTP).filter(models.OTP.email == email).delete()
+        db.commit()
+        user_otp = ""
+        for i in range(5):
+            user_otp += str(random.randint(0,9))
+        send_otp(email, user_otp)
+        new_user_otp = models.OTP(email = email, 
+                                  otp = user_otp)
+        db.add(new_user_otp)
+        db.commit()
+        db.refresh(new_user_otp)
+        return {"detail": "OTP Sent"}
+    else:
+        return {"detail": "No such user"}
+    
+
 def send_otp(email, otp):
     server = smtplib.SMTP('smtp.gmail.com', 587)
     server.starttls()
