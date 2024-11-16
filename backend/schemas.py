@@ -14,3 +14,10 @@ class UserBase(BaseModel):
 class CheckUser(BaseModel):
     user_name: str
     password: str
+
+class UserForgetPassword(BaseModel):
+    email: str
+    password: str
+
+class UserDelete(BaseModel):
+    user_name: str
