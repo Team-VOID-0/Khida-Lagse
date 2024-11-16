@@ -20,6 +20,17 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 
+def create_access_token(data: dict, expires_delta: Union[timedelta, None] = None):
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.now(timezone.utc) + expires_delta
+    else:
+        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+
 origins = ["*"]
 
 
@@ -126,7 +137,30 @@ def verify_otp(email, db: Session = Depends(get_db)):
         return {"detail": "OTP Sent"}
     else:
         return {"detail": "No such user"}
-    
+
+
+@app.post("/user_login/", tags=["User Login"])
+def login(login_user: schemas.CheckUser, db: Session = Depends(get_db)):
+    get_user_name = db.query(models.User).filter(models.User.user_name == login_user.user_name).first()
+    if get_user_name is None:
+        return {"detail": "Please do the registration first"}
+    else:
+        hashed_user_id = bcrypt.hashpw(get_user_name.user_id.encode(), get_user_name.salt.encode())
+        result_set = db.query(models.Login).filter(models.Login.user_id == hashed_user_id).first() 
+        if bcrypt.checkpw(get_user_name.user_id.encode(), result_set.user_id):       
+            if get_user_name.is_active == "1":  
+                hashed_password = result_set.password
+                if bcrypt.checkpw(login_user.password.encode(), hashed_password):
+                    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+                    access_token = create_access_token(
+                    data={"sub": login_user.user_name}, expires_delta=access_token_expires
+                    )
+                    return schemas.Token(access_token=access_token, token_type="bearer")
+                else:
+                    return {"detail": "invalid username or password"}
+            else:
+                return {"detail": "Activate your account by using OTP"}  
+            
 
 def send_otp(email, otp):
     server = smtplib.SMTP('smtp.gmail.com', 587)
