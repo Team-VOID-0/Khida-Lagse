@@ -189,7 +189,21 @@ def user_forget_password(forget_user_password: schemas.UserForgetPassword, db: S
     else:
         return {"detail": "No account on this email"}
     
+
+@app.post("/delete_user_account/", tags=["User Delete"])
+def user_delete(delete_user: schemas.UserDelete, db: Session = Depends(get_db)):
+    check_user_name = db.query(models.User).filter(models.User.user_name == delete_user.user_name).first()
+    if check_user_name is None:
+        return {"detail": "Something went wrong"}
+    else:
+        hashed_user_id = bcrypt.hashpw(check_user_name.user_id.encode(), check_user_name.salt.encode())
+        db.query(models.Login).filter(models.Login.user_id == hashed_user_id).delete()
+        db.query(models.User).filter(models.User.user_name == delete_user.user_name).delete()
+        db.query(models.OTP).filter(models.OTP.email == check_user_name.email).delete()
+        db.commit()
+        return {"detail": "Account deleted"}
     
+     
 def send_otp(email, otp):
     server = smtplib.SMTP('smtp.gmail.com', 587)
     server.starttls()
