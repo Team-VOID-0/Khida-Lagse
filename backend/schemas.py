@@ -29,6 +29,8 @@ class FoodCreate(BaseModel):
     description: str
     category: str
 
+
+
 class FoodResponse(BaseModel):
     id: int
     name: str
