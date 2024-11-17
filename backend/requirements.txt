@@ -1,0 +1,6 @@
+fastapi[standard]
+uvicorn
+sqlalchemy
+bcrypt
+python-jose
+jinja2

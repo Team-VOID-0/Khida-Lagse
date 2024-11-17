@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, LargeBinary
+from sqlalchemy import Column, Integer, Float, String, LargeBinary
 from database import Base
 
 
@@ -30,14 +30,12 @@ class OTP(Base):
     email = Column(String(320), unique=True)
     otp = Column(String(10))
 
+class Food(Base):
+    __tablename__ = 'foods'
 
-
-
-
-
-
-
-    
-
-
-
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    image = Column(LargeBinary, nullable=False)  # Store image as binary data
+    price = Column(Float, nullable=False)
+    description = Column(String, nullable=False)
+    category = Column(String, nullable=False)
