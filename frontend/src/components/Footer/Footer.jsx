@@ -10,7 +10,6 @@ import {
   MDBBtn
 } from 'mdb-react-ui-kit';
 import { FaFacebookF, FaTwitter, FaLinkedinIn } from 'react-icons/fa';
-import logo_side from '../../assets/logo-side.png'
 import './Footer.css'
 
 export default function App() {
