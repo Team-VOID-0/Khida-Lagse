@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Card, Image } from 'react-bootstrap';
 import './FoodItem.css';
-import { assets } from '../../assets/assets';
 
 const FoodItem = ({ id, name, price, description, image }) => {
   const [itemCount, setItemCount] = useState(0);
@@ -33,7 +32,6 @@ const FoodItem = ({ id, name, price, description, image }) => {
       <Card.Body className="food-item-info">
         <div className="food-item-name-rating d-flex justify-content-between align-items-center mb-2">
           <Card.Title as="p" className="mb-0">{name}</Card.Title>
-          <Image src={assets.rating_starts} width="70px" alt="Rating" />
         </div>
         <Card.Text className="food-item-desc">
           {description}
