@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import Navbar from './components/Navbar/Navbar'
+import Home from './pages/Home/Home'
 
 const App = () => {
   const [showLogin,setShowLogin] =useState(false)
@@ -9,6 +10,7 @@ const App = () => {
     <>
       <div id='home'>
         <Navbar setShowLogin={setShowLogin} setCurrentState={setCurrentState}/>
+        <Home/>
       </div>
     </>
   )
