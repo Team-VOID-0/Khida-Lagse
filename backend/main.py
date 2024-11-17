@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends,  status
+from fastapi import FastAPI, Depends,  status, File, UploadFile, HTTPException
 from sqlalchemy.orm import Session
 from jose import jwt
 import bcrypt
@@ -10,6 +10,8 @@ import smtplib
 from email.message import EmailMessage
 from datetime import datetime, timedelta, timezone
 from typing import Union
+from io import BytesIO
+from fastapi.responses import StreamingResponse
 
 
 app = FastAPI()
@@ -54,7 +56,7 @@ def get_db():
         db.close()
 
 
-@app.post("/user_registration/", status_code=status.HTTP_201_CREATED, tags=["User Registration"])
+@app.post("/user_registration/", status_code=status.HTTP_201_CREATED, tags=["User Management"])
 def create_user(requested_user: schemas.UserBase, db: Session = Depends(get_db)):
     salt = bcrypt.gensalt()
     id = ""
@@ -101,7 +103,7 @@ def create_user(requested_user: schemas.UserBase, db: Session = Depends(get_db))
         return {"detail": "OTP Sent"}
     
 
-@app.get("/user_verify_otp/{email}/{otp}", tags=["User Registration"])
+@app.get("/verify_otp/{email}/{otp}", tags=["OTP"])
 def verify_otp(email, otp, db: Session = Depends(get_db)):
     check_otp = db.query(models.OTP).filter(models.OTP.email == email).first()
     if check_otp is not None:
@@ -119,7 +121,7 @@ def verify_otp(email, otp, db: Session = Depends(get_db)):
         return {"detail": "No such user"}
     
 
-@app.get("/user_resend_otp/{email}", tags=["User Registration"])
+@app.get("/resend_otp/{email}", tags=["OTP"])
 def verify_otp(email, db: Session = Depends(get_db)):
     check_otp = db.query(models.OTP).filter(models.OTP.email == email).first()
     if check_otp is not None:
@@ -139,13 +141,14 @@ def verify_otp(email, db: Session = Depends(get_db)):
         return {"detail": "No such user"}
 
 
-@app.post("/user_login/", tags=["User Login"])
+@app.post("/user_login/", tags=["User Management"])
 def login(login_user: schemas.CheckUser, db: Session = Depends(get_db)):
     get_user_name = db.query(models.User).filter(models.User.user_name == login_user.user_name).first()
     if get_user_name is None:
         return {"detail": "Please do the registration first"}
     else:
-        hashed_user_id = bcrypt.hashpw(get_user_name.user_id.encode(), get_user_name.salt.encode())
+        # hashed_user_id = bcrypt.hashpw(get_user_name.user_id.encode(), get_user_name.salt.encode())
+        hashed_user_id = bcrypt.hashpw(get_user_name.user_id.encode(), get_user_name.salt if isinstance(get_user_name.salt, bytes) else get_user_name.salt.encode())
         result_set = db.query(models.Login).filter(models.Login.user_id == hashed_user_id).first() 
         if bcrypt.checkpw(get_user_name.user_id.encode(), result_set.user_id):       
             if get_user_name.is_active == "1":  
@@ -162,7 +165,7 @@ def login(login_user: schemas.CheckUser, db: Session = Depends(get_db)):
                 return {"detail": "Activate your account by using OTP"}  
             
 
-@app.post("/user_forget_password/", tags=["User Login"])
+@app.post("/forget_password/", tags=["Password"])
 def user_forget_password(forget_user_password: schemas.UserForgetPassword, db: Session = Depends(get_db)):
     check_user_mail = db.query(models.User).filter(models.User.email == forget_user_password.email).first()
     if check_user_mail is not None:
@@ -190,20 +193,93 @@ def user_forget_password(forget_user_password: schemas.UserForgetPassword, db: S
         return {"detail": "No account on this email"}
     
 
-@app.post("/delete_user_account/", tags=["User Delete"])
+@app.post("/delete_user_account/", tags=["User Management"])
 def user_delete(delete_user: schemas.UserDelete, db: Session = Depends(get_db)):
     check_user_name = db.query(models.User).filter(models.User.user_name == delete_user.user_name).first()
     if check_user_name is None:
         return {"detail": "Something went wrong"}
     else:
-        hashed_user_id = bcrypt.hashpw(check_user_name.user_id.encode(), check_user_name.salt.encode())
+        # hashed_user_id = bcrypt.hashpw(check_user_name.user_id.encode(), check_user_name.salt.encode())
+        hashed_user_id = bcrypt.hashpw(check_user_name.user_id.encode(), check_user_name.salt if isinstance(check_user_name.salt, bytes) else check_user_name.salt.encode())
         db.query(models.Login).filter(models.Login.user_id == hashed_user_id).delete()
         db.query(models.User).filter(models.User.user_name == delete_user.user_name).delete()
         db.query(models.OTP).filter(models.OTP.email == check_user_name.email).delete()
         db.commit()
         return {"detail": "Account deleted"}
     
-     
+
+
+# ==================
+# Food Management
+# ==================
+
+# Add food item
+@app.post("/food/", tags=["Food Management"])
+async def add_food(
+    food: schemas.FoodCreate = Depends(),
+    image: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    image_data = await image.read()
+    new_food = models.Food(
+        name=food.name,
+        image=image_data,
+        price=food.price,
+        description=food.description,
+        category=food.category
+    )
+    db.add(new_food)
+    db.commit()
+    db.refresh(new_food)
+    return {"detail": "Food item created", "food_id": new_food.id}
+
+
+# Get all food items
+@app.get("/foods/", tags=["Food Management"])
+def get_all_foods(db: Session = Depends(get_db)):
+    foods = db.query(models.Food).all()
+
+    # Construct response with image URL for each food item
+    food_list = []
+    for food in foods:
+        food_list.append({
+            "id": food.id,
+            "name": food.name,
+            "price": food.price,
+            "description": food.description,
+            "category": food.category,
+            "image_url": f"/food/{food.id}/image"
+        })
+
+    return food_list
+
+
+# Get a single food item by ID
+@app.get("/food/{food_id}/", tags=["Food Management"])
+def get_food(food_id: int, db: Session = Depends(get_db)):
+    food_item = db.query(models.Food).filter(models.Food.id == food_id).first()
+    if not food_item:
+        raise HTTPException(status_code=404, detail="Food item not found")
+    return {
+        "id": food_item.id,
+        "name": food_item.name,
+        "price": food_item.price,
+        "description": food_item.description,
+        "category": food_item.category,
+        "image_url": f"/food/{food_id}/image"
+    }
+
+# Get the image of a food item
+@app.get("/food/{food_id}/image", tags=["Food Management"])
+def get_food_image(food_id: int, db: Session = Depends(get_db)):
+    food_item = db.query(models.Food).filter(models.Food.id == food_id).first()
+    if not food_item or not food_item.image:
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    return StreamingResponse(BytesIO(food_item.image), media_type="image/png")
+
+
+    
 def send_otp(email, otp):
     server = smtplib.SMTP('smtp.gmail.com', 587)
     server.starttls()
@@ -219,5 +295,4 @@ def send_otp(email, otp):
 
     msg.set_content("Your OTP is: " + otp)
 
-    server.send_message(msg)
-
+    server.send_message(msg)    
