@@ -31,32 +31,6 @@ class OTP(Base):
     otp = Column(String(10))
 
 
-# class Job(Base):
-#     __tablename__ = "job_description"
-
-#     id = Column(Integer, primary_key=True, index=True)
-#     title = Column(String(100))
-#     description = Column(String(255))
-#     company = Column(String(100))
-#     location = Column(String(100))
-#     salary = Column(Integer)
-
-
-# class Contact(Base):
-#     __tablename__ = "contact_us"
-
-#     id = Column(Integer, primary_key=True, index=True)
-#     email = Column(String(320))
-#     message = Column(String(255))
-
-# class Apply(Base):
-#     __tablename__ = "apply_job"
-    
-#     id = Column(Integer, primary_key=True, unique=True)
-#     user_id = Column(String(20))
-#     link = Column(String(255))
-
-
 
 
 
