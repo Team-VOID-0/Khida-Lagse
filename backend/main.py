@@ -248,7 +248,7 @@ def get_all_foods(db: Session = Depends(get_db)):
             "price": food.price,
             "description": food.description,
             "category": food.category,
-            "image_url": f"/food/{food.id}/image"
+            "image_url": f"http://localhost:8000/food/{food.id}/image"
         })
 
     return food_list
@@ -266,7 +266,7 @@ def get_food(food_id: int, db: Session = Depends(get_db)):
         "price": food_item.price,
         "description": food_item.description,
         "category": food_item.category,
-        "image_url": f"/food/{food_id}/image"
+        "image_url": f"http://localhost:8000/food/{food_id}/image"
     }
 
 # Get the image of a food item
@@ -277,6 +277,45 @@ def get_food_image(food_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Image not found")
 
     return StreamingResponse(BytesIO(food_item.image), media_type="image/png")
+
+# Update Food Item
+@app.put("/food/{food_id}/", tags=["Food Management"])
+async def update_food(
+    food_id: int,
+    food: schemas.FoodCreate = Depends(),
+    image: UploadFile = File(None),  # Image is optional for update
+    db: Session = Depends(get_db)
+):
+    food_item = db.query(models.Food).filter(models.Food.id == food_id).first()
+    if not food_item:
+        raise HTTPException(status_code=404, detail="Food item not found")
+    
+    food_item.name = food.name
+    food_item.price = food.price
+    food_item.description = food.description
+    food_item.category = food.category
+    
+    if image:
+        image_data = await image.read()
+        food_item.image = image_data
+
+    db.commit()
+    db.refresh(food_item)
+
+    return {"detail": "Food item updated successfully", "food_id": food_item.id}
+
+
+# Delete Food Item
+@app.delete("/food/{food_id}/", tags=["Food Management"])
+def delete_food(food_id: int, db: Session = Depends(get_db)):
+    food_item = db.query(models.Food).filter(models.Food.id == food_id).first()
+    if not food_item:
+        raise HTTPException(status_code=404, detail="Food item not found")
+
+    db.delete(food_item)
+    db.commit()
+
+    return {"detail": "Food item deleted successfully"}
 
 
     
