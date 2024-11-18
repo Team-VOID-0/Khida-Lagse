@@ -58,6 +58,7 @@ def get_db():
 
 @app.post("/user_registration/", status_code=status.HTTP_201_CREATED, tags=["User Management"])
 def create_user(requested_user: schemas.UserBase, db: Session = Depends(get_db)):
+    print(requested_user) 
     salt = bcrypt.gensalt()
     id = ""
     for i in range(10):
@@ -76,8 +77,8 @@ def create_user(requested_user: schemas.UserBase, db: Session = Depends(get_db))
     else:
         new_user = models.User(name = requested_user.name,
                                user_name = requested_user.user_name, 
-                               mobile_number = requested_user.mobile_number, 
                                email = requested_user.email,
+                               mobile_number = requested_user.mobile_number, 
                                is_active = "0",
                                user_id = id,
                                salt = salt)
@@ -191,6 +192,38 @@ def user_forget_password(forget_user_password: schemas.UserForgetPassword, db: S
             return {"detail": "No account on this email"}
     else:
         return {"detail": "No account on this email"}
+    
+
+# Update the user details
+@app.put("/user_update/", tags=["User Management"])
+def update_user(update_data: schemas.UserUpdate, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.user_id == update_data.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if update_data.name:
+        user.name = update_data.name
+    if update_data.user_name:
+        existing_user = db.query(models.User).filter(models.User.user_name == update_data.user_name).first()
+        if existing_user and existing_user.user_id != update_data.user_id:
+            raise HTTPException(status_code=400, detail="Username already taken")
+        user.user_name = update_data.user_name
+    if update_data.email:
+        existing_email = db.query(models.User).filter(models.User.email == update_data.email).first()
+        if existing_email and existing_email.user_id != update_data.user_id:
+            raise HTTPException(status_code=400, detail="Email already in use")
+        user.email = update_data.email
+    if update_data.mobile_number:
+        existing_mobile = db.query(models.User).filter(models.User.mobile_number == update_data.mobile_number).first()
+        if existing_mobile and existing_mobile.user_id != update_data.user_id:
+            raise HTTPException(status_code=400, detail="Mobile number already in use")
+        user.mobile_number = update_data.mobile_number
+
+    db.commit()
+    db.refresh(user)
+
+    return {"detail": "User updated successfully"}
+
     
 
 @app.post("/delete_user_account/", tags=["User Management"])
