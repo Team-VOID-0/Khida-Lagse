@@ -41,8 +41,7 @@ app.add_middleware(
     allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
-)
+    allow_headers=["*"],)
 
 
 models.Base.metadata.create_all(bind=engine)
@@ -56,6 +55,9 @@ def get_db():
         db.close()
 
 
+# ==================
+# User Management
+# ==================
 @app.post("/user_registration/", status_code=status.HTTP_201_CREATED, tags=["User Management"])
 def create_user(requested_user: schemas.UserBase, db: Session = Depends(get_db)):
     print(requested_user) 
@@ -104,45 +106,6 @@ def create_user(requested_user: schemas.UserBase, db: Session = Depends(get_db))
         return {"detail": "OTP Sent"}
     
 
-@app.get("/verify_otp/{email}/{otp}", tags=["OTP"])
-def verify_otp(email, otp, db: Session = Depends(get_db)):
-    check_otp = db.query(models.OTP).filter(models.OTP.email == email).first()
-    if check_otp is not None:
-        if check_otp.otp == otp:
-            activate = db.query(models.User).filter(models.User.email == check_otp.email).first()
-            if activate is not None:
-                activate.is_active = "1"
-                db.commit()
-                db.query(models.OTP).filter(models.OTP.email == email).delete()
-                db.commit()
-                return {"detail": "OTP used"}
-        else:
-            return {"detail": "Wrong OTP"}
-    else:
-        return {"detail": "No such user"}
-    
-
-@app.get("/resend_otp/{email}", tags=["OTP"])
-def verify_otp(email, db: Session = Depends(get_db)):
-    check_otp = db.query(models.OTP).filter(models.OTP.email == email).first()
-    if check_otp is not None:
-        db.query(models.OTP).filter(models.OTP.email == email).delete()
-        db.commit()
-        user_otp = ""
-        for i in range(5):
-            user_otp += str(random.randint(0,9))
-        send_otp(email, user_otp)
-        new_user_otp = models.OTP(email = email, 
-                                  otp = user_otp)
-        db.add(new_user_otp)
-        db.commit()
-        db.refresh(new_user_otp)
-        return {"detail": "OTP Sent"}
-    else:
-        return {"detail": "No such user"}
-
-
-
 @app.get("/user_login/{user_name}/{password}", tags=["User Management"])
 def login(user_name, password, db: Session = Depends(get_db)):
     get_role = db.query(models.Login).filter(models.Login.role == "user").first()
@@ -165,10 +128,96 @@ def login(user_name, password, db: Session = Depends(get_db)):
                     else:
                         return {"detail": "invalid username or password"}
                 else:
-                    return {"detail": "Activate your account by using OTP"}       
-            
+                    return {"detail": "Activate your account by using OTP"}   
 
-@app.post("/forget_password/", tags=["Password"])
+
+@app.put("/user_update/", tags=["User Management"])
+def update_user(update_data: schemas.UserUpdate, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.user_id == update_data.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if update_data.name:
+        user.name = update_data.name
+    if update_data.user_name:
+        existing_user = db.query(models.User).filter(models.User.user_name == update_data.user_name).first()
+        if existing_user and existing_user.user_id != update_data.user_id:
+            raise HTTPException(status_code=400, detail="Username already taken")
+        user.user_name = update_data.user_name
+    if update_data.email:
+        existing_email = db.query(models.User).filter(models.User.email == update_data.email).first()
+        if existing_email and existing_email.user_id != update_data.user_id:
+            raise HTTPException(status_code=400, detail="Email already in use")
+        user.email = update_data.email
+    if update_data.mobile_number:
+        existing_mobile = db.query(models.User).filter(models.User.mobile_number == update_data.mobile_number).first()
+        if existing_mobile and existing_mobile.user_id != update_data.user_id:
+            raise HTTPException(status_code=400, detail="Mobile number already in use")
+        user.mobile_number = update_data.mobile_number
+    db.commit()
+    db.refresh(user)
+    return {"detail": "User updated successfully"}
+
+    
+@app.post("/delete_user_account/", tags=["User Management"])
+def user_delete(delete_user: schemas.UserDelete, db: Session = Depends(get_db)):
+    check_user_name = db.query(models.User).filter(models.User.user_name == delete_user.user_name).first()
+    if check_user_name is None:
+        return {"detail": "Something went wrong"}
+    else:
+        hashed_user_id = bcrypt.hashpw(check_user_name.user_id.encode(), check_user_name.salt if isinstance(check_user_name.salt, bytes) else check_user_name.salt.encode())
+        db.query(models.Login).filter(models.Login.user_id == hashed_user_id).delete()
+        db.query(models.User).filter(models.User.user_name == delete_user.user_name).delete()
+        db.query(models.OTP).filter(models.OTP.email == check_user_name.email).delete()
+        db.commit()
+        return {"detail": "Account deleted"}    
+    
+
+# ==================
+# OTP Management
+# ==================
+@app.get("/verify_otp/{email}/{otp}", tags=["OTP Management"])
+def verify_otp(email, otp, db: Session = Depends(get_db)):
+    check_otp = db.query(models.OTP).filter(models.OTP.email == email).first()
+    if check_otp is not None:
+        if check_otp.otp == otp:
+            activate = db.query(models.User).filter(models.User.email == check_otp.email).first()
+            if activate is not None:
+                activate.is_active = "1"
+                db.commit()
+                db.query(models.OTP).filter(models.OTP.email == email).delete()
+                db.commit()
+                return {"detail": "OTP used"}
+        else:
+            return {"detail": "Wrong OTP"}
+    else:
+        return {"detail": "No such user"}
+    
+
+@app.get("/resend_otp/{email}", tags=["OTP Management"])
+def verify_otp(email, db: Session = Depends(get_db)):
+    check_otp = db.query(models.OTP).filter(models.OTP.email == email).first()
+    if check_otp is not None:
+        db.query(models.OTP).filter(models.OTP.email == email).delete()
+        db.commit()
+        user_otp = ""
+        for i in range(5):
+            user_otp += str(random.randint(0,9))
+        send_otp(email, user_otp)
+        new_user_otp = models.OTP(email = email, 
+                                  otp = user_otp)
+        db.add(new_user_otp)
+        db.commit()
+        db.refresh(new_user_otp)
+        return {"detail": "OTP Sent"}
+    else:
+        return {"detail": "No such user"}
+
+
+# ==================
+# Password Management
+# ==================
+@app.post("/forget_password/", tags=["Password Management"])
 def user_forget_password(forget_user_password: schemas.UserForgetPassword, db: Session = Depends(get_db)):
     check_user_mail = db.query(models.User).filter(models.User.email == forget_user_password.email).first()
     if check_user_mail is not None:
@@ -196,57 +245,9 @@ def user_forget_password(forget_user_password: schemas.UserForgetPassword, db: S
         return {"detail": "No account on this email"}
     
 
-# Update the user details
-@app.put("/user_update/", tags=["User Management"])
-def update_user(update_data: schemas.UserUpdate, db: Session = Depends(get_db)):
-    user = db.query(models.User).filter(models.User.user_id == update_data.user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    if update_data.name:
-        user.name = update_data.name
-    if update_data.user_name:
-        existing_user = db.query(models.User).filter(models.User.user_name == update_data.user_name).first()
-        if existing_user and existing_user.user_id != update_data.user_id:
-            raise HTTPException(status_code=400, detail="Username already taken")
-        user.user_name = update_data.user_name
-    if update_data.email:
-        existing_email = db.query(models.User).filter(models.User.email == update_data.email).first()
-        if existing_email and existing_email.user_id != update_data.user_id:
-            raise HTTPException(status_code=400, detail="Email already in use")
-        user.email = update_data.email
-    if update_data.mobile_number:
-        existing_mobile = db.query(models.User).filter(models.User.mobile_number == update_data.mobile_number).first()
-        if existing_mobile and existing_mobile.user_id != update_data.user_id:
-            raise HTTPException(status_code=400, detail="Mobile number already in use")
-        user.mobile_number = update_data.mobile_number
-
-    db.commit()
-    db.refresh(user)
-
-    return {"detail": "User updated successfully"}
-
-    
-
-@app.post("/delete_user_account/", tags=["User Management"])
-def user_delete(delete_user: schemas.UserDelete, db: Session = Depends(get_db)):
-    check_user_name = db.query(models.User).filter(models.User.user_name == delete_user.user_name).first()
-    if check_user_name is None:
-        return {"detail": "Something went wrong"}
-    else:
-        # hashed_user_id = bcrypt.hashpw(check_user_name.user_id.encode(), check_user_name.salt.encode())
-        hashed_user_id = bcrypt.hashpw(check_user_name.user_id.encode(), check_user_name.salt if isinstance(check_user_name.salt, bytes) else check_user_name.salt.encode())
-        db.query(models.Login).filter(models.Login.user_id == hashed_user_id).delete()
-        db.query(models.User).filter(models.User.user_name == delete_user.user_name).delete()
-        db.query(models.OTP).filter(models.OTP.email == check_user_name.email).delete()
-        db.commit()
-        return {"detail": "Account deleted"}
-    
-
 # ==================
 # Delivery Man Management
 # ==================
-
 @app.get("/delivery_man_login/{user_id}/{password}", tags=["Delivery Man Management"])
 def login(user_id, password, db: Session = Depends(get_db)):
     get_role = db.query(models.Login).filter(models.Login.role == "admin")
@@ -306,7 +307,6 @@ def get_all_foods(db: Session = Depends(get_db)):
             "category": food.category,
             "image_url": f"http://localhost:8000/food/{food.id}/image"
         })
-
     return food_list
 
 
@@ -331,7 +331,6 @@ def get_food_image(food_id: int, db: Session = Depends(get_db)):
     food_item = db.query(models.Food).filter(models.Food.id == food_id).first()
     if not food_item or not food_item.image:
         raise HTTPException(status_code=404, detail="Image not found")
-
     return StreamingResponse(BytesIO(food_item.image), media_type="image/png")
 
 # Update Food Item
