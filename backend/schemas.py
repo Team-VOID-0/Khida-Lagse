@@ -1,3 +1,4 @@
+from symtable import Class
 from pydantic import BaseModel
 from typing import Optional
 
@@ -38,6 +39,11 @@ class FoodCreate(BaseModel):
     category: str
 
 
+class Order(BaseModel):
+    user_name: str
+    food_id: int
+    quantity: int
+    
 
 class FoodResponse(BaseModel):
     id: int
@@ -48,3 +54,5 @@ class FoodResponse(BaseModel):
 
     class Config:
         orm_mode = True
+
+
