@@ -31,6 +31,7 @@ class OTP(Base):
     email = Column(String(320), unique=True)
     otp = Column(String(10))
 
+
 class Food(Base):
     __tablename__ = 'foods'
 
@@ -40,3 +41,13 @@ class Food(Base):
     price = Column(Float, nullable=False)
     description = Column(String, nullable=False)
     category = Column(String, nullable=False)
+
+
+class Order(Base):
+    __tablename__ = "Order"
+
+    order_id = Column(Integer, primary_key=True, index=True)
+    user_name = Column(String(255), nullable=False)
+    food_id = Column(Integer, nullable=False)
+    quantity = Column(Integer, nullable=False)
+    price = Column(Integer, nullable=False)
