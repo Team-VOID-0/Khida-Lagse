@@ -243,6 +243,27 @@ def user_delete(delete_user: schemas.UserDelete, db: Session = Depends(get_db)):
         return {"detail": "Account deleted"}
     
 
+# ==================
+# Delivery Man Management
+# ==================
+
+@app.get("/delivery_man_login/{user_id}/{password}", tags=["Delivery Man Management"])
+def login(user_id, password, db: Session = Depends(get_db)):
+    get_role = db.query(models.Login).filter(models.Login.role == "admin")
+    if get_role is None:
+        return {"detail": "Invalid attempt"}
+    else:
+        get_user_id = db.query(models.Login).filter(models.Login.user_id == user_id).first()
+        if get_user_id is None:
+            return {"detail": "Invalid attempt"}
+        else:
+            get_user_password = db.query(models.Login).filter(models.Login.password == password).first()
+            if get_user_password is None:
+                return {"detail": "Invalid attempt"}
+            else:
+                return {"detail": "Login successfully done"}
+    
+
 
 # ==================
 # Food Management
