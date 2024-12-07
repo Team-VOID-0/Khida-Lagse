@@ -16,11 +16,12 @@ class User(Base):
 
 
 class Login(Base):
-    __tablename__ = "user_login"
+    __tablename__ = "login"
    
     id = Column(Integer, primary_key=True, index=True)
-    password = Column(LargeBinary)
     user_id = Column(LargeBinary)
+    password = Column(LargeBinary)
+    role = Column(String(255))
 
 
 class OTP(Base):
