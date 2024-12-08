@@ -12,6 +12,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Union
 from io import BytesIO
 from fastapi.responses import StreamingResponse
+from sqlalchemy import func
 
 
 app = FastAPI()
@@ -250,7 +251,7 @@ def user_forget_password(forget_user_password: schemas.UserForgetPassword, db: S
 # ==================
 @app.get("/delivery_man_login/{user_id}/{password}", tags=["Delivery Man Management"])
 def login(user_id, password, db: Session = Depends(get_db)):
-    get_role = db.query(models.Login).filter(models.Login.role == "admin")
+    get_role = db.query(models.Login).filter(models.Login.role == "delivery_man")
     if get_role is None:
         return {"detail": "Invalid attempt"}
     else:
@@ -263,7 +264,29 @@ def login(user_id, password, db: Session = Depends(get_db)):
                 return {"detail": "Invalid attempt"}
             else:
                 return {"detail": "Login successfully done"}
-    
+
+
+@app.get("/delivery_man_assigned_task/{user_name}", tags=["Delivery Man Management"])
+def login(user_name: str, db: Session = Depends(get_db)):
+    total_price = db.query(func.sum(models.Order.price)).filter(models.Order.user_name == user_name).scalar()
+
+    if not total_price:
+        return {"detail": "No order done by this user"}
+
+    user_details = db.query(models.User).filter(models.User.user_name == user_name).first()
+    user_address = db.query(models.Order).filter(models.Order.user_name == user_name).first()
+    if not user_details:
+        return {"detail": "User not found in user_registration"}
+
+    return {
+        "user_details": {
+            "user_name": user_details.user_name,
+            "email": user_details.email,  
+            "phone": user_details.mobile_number,
+            "address":  user_address.address
+        },
+        "total_price": total_price  
+    }
 
 
 # ==================
@@ -391,7 +414,8 @@ def order_food(order_food_item: schemas.Order, db: Session = Depends(get_db)):
             order_details = models.Order(user_name=order_food_item.user_name,
                                         food_id=order_food_item.food_id,
                                         quantity=order_food_item.quantity,
-                                        price=total_price)
+                                        price=total_price,
+                                        address=order_food_item.address)
             db.add(order_details)
             db.commit()
             db.refresh(order_details)
