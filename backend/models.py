@@ -51,3 +51,4 @@ class Order(Base):
     food_id = Column(Integer, nullable=False)
     quantity = Column(Integer, nullable=False)
     price = Column(Integer, nullable=False)
+    address = Column(String(255), nullable=False)
