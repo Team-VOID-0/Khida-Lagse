@@ -378,20 +378,24 @@ def delete_food(food_id: int, db: Session = Depends(get_db)):
 # ==================
 @app.post("/order/", tags=["Order Management"])
 def order_food(order_food_item: schemas.Order, db: Session = Depends(get_db)):
-    food_item = db.query(models.Food).filter(models.Food.id == order_food_item.food_id).first()
-    if not food_item:
-        return {"detail": "Food item not found"}
-    
-    total_price = order_food_item.quantity * food_item.price
+    get_user_name = db.query(models.User).filter(models.User.user_name == order_food_item.user_name).first()
+    if get_user_name is None:
+        return {"detail": "Please do the registration first"}
+    else:
+        food_item = db.query(models.Food).filter(models.Food.id == order_food_item.food_id).first()
+        if food_item is None:
+            return {"detail": "Food item not found"}
+        else:
+            total_price = order_food_item.quantity * food_item.price
 
-    order_details = models.Order(user_name=order_food_item.user_name,
-                                 food_id=order_food_item.food_id,
-                                 quantity=order_food_item.quantity,
-                                 price=total_price)
-    db.add(order_details)
-    db.commit()
-    db.refresh(order_details)
-    return {"detail": "Order accepted", "order": order_details}
+            order_details = models.Order(user_name=order_food_item.user_name,
+                                        food_id=order_food_item.food_id,
+                                        quantity=order_food_item.quantity,
+                                        price=total_price)
+            db.add(order_details)
+            db.commit()
+            db.refresh(order_details)
+            return {"detail": "Order accepted", "order": order_details}
 
 
  
