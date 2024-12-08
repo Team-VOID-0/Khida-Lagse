@@ -1,0 +1,5 @@
+.table{
+    max-width: 1500px !important;
+    width: 100% !important;
+    overflow-x: auto !important;
+}
