@@ -1,0 +1,93 @@
+/* .home-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 87vh;
+    width: 100%;
+    background-image: url('../../assets/background.png');
+    background-size: cover; 
+    background-position: center; 
+    background-repeat: no-repeat;
+    background-size: 150%;
+  } */
+
+  .home-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 87vh;
+    /* margin-top: 150px; */
+    position: relative;
+  }
+  
+  .home-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: url('../../assets//background.png'); /* Replace with your image path */
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 150%;
+    opacity: 0.3; /* Adjust opacity (0 to 1 range, 0 being fully transparent) */
+    z-index: -1; /* Ensures the image stays in the background */
+  }
+  .hr-home {
+    border: 0;
+    border-top: 2px solid tomato;
+  }
+  
+  .auth-header {
+    text-align: center;
+    font-size: 30px;
+    font-weight: 500;
+    padding: 10px 0 10px 0;
+    color: black;
+    background-color: rgba(255, 99, 71, 0.101);
+  }
+  
+  .auth-card {
+    width: 400px;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    border: 3px tomato solid;
+  }
+ 
+  
+  .auth-form {
+    padding: 20px;
+  }
+  
+  .form-group {
+    margin-bottom: 15px;
+  }
+  
+  .form-group label {
+    display: block;
+    margin-bottom: 5px;
+    /* font-weight: bold; */
+  }
+  
+  .form-group input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+  }
+  
+  .submit-button {
+    width: 100%;
+    padding: 12px;
+    background-color: tomato;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
