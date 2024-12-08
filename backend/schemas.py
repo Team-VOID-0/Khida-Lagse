@@ -43,6 +43,7 @@ class Order(BaseModel):
     user_name: str
     food_id: int
     quantity: int
+    address: str
     
 
 class FoodResponse(BaseModel):
