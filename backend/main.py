@@ -269,7 +269,7 @@ def login(user_id, password, db: Session = Depends(get_db)):
 # ==================
 # Admin Management
 # ==================
-@app.get("/admin_login/{user_id}/{password}", tags=["Delivery Man Management"])
+@app.get("/admin_login/{user_id}/{password}", tags=["Admin Management"])
 def login(user_id, password, db: Session = Depends(get_db)):
     get_role = db.query(models.Login).filter(models.Login.role == "admin")
     if get_role is None:
@@ -284,6 +284,18 @@ def login(user_id, password, db: Session = Depends(get_db)):
                 return {"detail": "Invalid attempt"}
             else:
                 return {"detail": "Login successfully done"}
+            
+
+@app.delete("/delete_account/{user_id}/", tags=["Admin Management"])
+def delete_food(user_id: int, db: Session = Depends(get_db)):
+    food_item = db.query(models.Login).filter(models.Login.user_id == user_id).first()
+    if not food_item:
+        raise HTTPException(status_code=404, detail="User item not found")
+
+    db.delete(food_item)
+    db.commit()
+
+    return {"detail": "User deleted successfully"}
             
 
 # ==================
