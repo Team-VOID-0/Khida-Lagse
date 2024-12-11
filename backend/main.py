@@ -399,9 +399,10 @@ def delete_food(food_id: int, db: Session = Depends(get_db)):
 # ==================
 # Order Management
 # ==================
-@app.post("/order/", tags=["Order Management"])
+@app.post("/add_to_cart/", tags=["Order Management"])
 def order_food(order_food_item: schemas.Order, db: Session = Depends(get_db)):
     pin = str(random.randint(10000, 99999))
+    order_id = str(random.randint(100, 999))
     get_user_name = db.query(models.User).filter(models.User.user_name == order_food_item.user_name).first()
     if get_user_name is None:
         return {"detail": "Please do the registration first"}
@@ -412,7 +413,8 @@ def order_food(order_food_item: schemas.Order, db: Session = Depends(get_db)):
         else:
             total_price = order_food_item.quantity * food_item.price
 
-            order_details = models.Order(user_name=order_food_item.user_name,
+            order_details = models.Order(order_id = order_id,
+                                        user_name=order_food_item.user_name,
                                         food_id=order_food_item.food_id,
                                         quantity=order_food_item.quantity,
                                         price=total_price,
@@ -425,7 +427,20 @@ def order_food(order_food_item: schemas.Order, db: Session = Depends(get_db)):
             return {"detail": "Order accepted", "order": order_details}
 
 
- 
+@app.post("/cart_checkout/{order_id}", tags=["Order Management"])
+def checkout(order_id: str, pin: int, db: Session = Depends(get_db)):
+    cart_items = db.query(models.Order).filter(models.Order.order_id == order_id, models.Order.pin == pin, models.Order.complete == "0").all()
+    if not cart_items:
+        raise HTTPException(status_code=404, detail="Cart is empty or order_id not found")
+
+    # Mark all items in the cart as complete
+    for item in cart_items:
+        item.complete = "1"
+    db.commit()
+
+    return {"message": "Order successfully checked out", "order_id": order_id}
+
+
 def send_otp(email, otp):
     server = smtplib.SMTP('smtp.gmail.com', 587)
     server.starttls()
