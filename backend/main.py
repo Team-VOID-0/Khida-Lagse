@@ -401,6 +401,7 @@ def delete_food(food_id: int, db: Session = Depends(get_db)):
 # ==================
 @app.post("/order/", tags=["Order Management"])
 def order_food(order_food_item: schemas.Order, db: Session = Depends(get_db)):
+    pin = str(random.randint(10000, 99999))
     get_user_name = db.query(models.User).filter(models.User.user_name == order_food_item.user_name).first()
     if get_user_name is None:
         return {"detail": "Please do the registration first"}
@@ -415,7 +416,9 @@ def order_food(order_food_item: schemas.Order, db: Session = Depends(get_db)):
                                         food_id=order_food_item.food_id,
                                         quantity=order_food_item.quantity,
                                         price=total_price,
-                                        address=order_food_item.address)
+                                        address=order_food_item.address,
+                                        pin = pin,
+                                        complete = "0")
             db.add(order_details)
             db.commit()
             db.refresh(order_details)
