@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Float, String, LargeBinary
+from sqlalchemy import Column, ForeignKey, Integer, Float, String, LargeBinary
 from database import Base
 
 
@@ -46,9 +46,11 @@ class Food(Base):
 class Order(Base):
     __tablename__ = "Order"
 
-    order_id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True)
     user_name = Column(String(255), nullable=False)
     food_id = Column(Integer, nullable=False)
     quantity = Column(Integer, nullable=False)
     price = Column(Integer, nullable=False)
     address = Column(String(255), nullable=False)
+    pin = Column(Integer, nullable=False)
+    complete = Column(String(10), nullable=False)
