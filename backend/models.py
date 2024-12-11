@@ -47,6 +47,7 @@ class Order(Base):
     __tablename__ = "Order"
 
     id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(Integer)
     user_name = Column(String(255), nullable=False)
     food_id = Column(Integer, nullable=False)
     quantity = Column(Integer, nullable=False)
