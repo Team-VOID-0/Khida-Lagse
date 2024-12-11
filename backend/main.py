@@ -266,28 +266,25 @@ def login(user_id, password, db: Session = Depends(get_db)):
                 return {"detail": "Login successfully done"}
 
 
-@app.get("/delivery_man_assigned_task/{user_name}", tags=["Delivery Man Management"])
-def login(user_name: str, db: Session = Depends(get_db)):
-    total_price = db.query(func.sum(models.Order.price)).filter(models.Order.user_name == user_name).scalar()
-
-    if not total_price:
-        return {"detail": "No order done by this user"}
-
-    user_details = db.query(models.User).filter(models.User.user_name == user_name).first()
-    user_address = db.query(models.Order).filter(models.Order.user_name == user_name).first()
-    if not user_details:
-        return {"detail": "User not found in user_registration"}
-
-    return {
-        "user_details": {
-            "user_name": user_details.user_name,
-            "email": user_details.email,  
-            "phone": user_details.mobile_number,
-            "address":  user_address.address
-        },
-        "total_price": total_price  
-    }
-
+# ==================
+# Admin Management
+# ==================
+@app.get("/admin_login/{user_id}/{password}", tags=["Delivery Man Management"])
+def login(user_id, password, db: Session = Depends(get_db)):
+    get_role = db.query(models.Login).filter(models.Login.role == "admin")
+    if get_role is None:
+        return {"detail": "Invalid attempt"}
+    else:
+        get_user_id = db.query(models.Login).filter(models.Login.user_id == user_id).first()
+        if get_user_id is None:
+            return {"detail": "Invalid attempt"}
+        else:
+            get_user_password = db.query(models.Login).filter(models.Login.password == password).first()
+            if get_user_password is None:
+                return {"detail": "Invalid attempt"}
+            else:
+                return {"detail": "Login successfully done"}
+            
 
 # ==================
 # Food Management
