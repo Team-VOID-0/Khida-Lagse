@@ -436,7 +436,7 @@ def order_food(order_food_item: schemas.Order, db: Session = Depends(get_db)):
             return {"detail": "Order accepted", "order": order_details}
 
 
-@app.post("/cart_checkout/{order_id}", tags=["Order Management"])
+@app.post("/cart_checkout/{order_id}/{pin}", tags=["Order Management"])
 def checkout(order_id: str, pin: int, db: Session = Depends(get_db)):
     cart_items = db.query(models.Order).filter(models.Order.order_id == order_id, models.Order.pin == pin, models.Order.complete == "0").all()
     if not cart_items:
