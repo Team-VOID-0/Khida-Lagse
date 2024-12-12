@@ -467,6 +467,40 @@ def order_food(order_food_item: schemas.Order, db: Session = Depends(get_db)):
         return {"detail": "Order accepted", "order": order_details}
 
 
+@app.get("/generate_bill/{user_name}", tags=["Order Management"])
+def generate_bill(user_name: str, db: Session = Depends(get_db)):
+    # Fetch all incomplete orders for the user
+    incomplete_orders = db.query(models.Order).filter(
+        models.Order.user_name == user_name,
+        models.Order.complete == "0"
+    ).all()
+
+    if not incomplete_orders:
+        raise HTTPException(status_code=404, detail="No pending orders found for this user.")
+
+    # Calculate total bill amount
+    total_amount = sum(order.price for order in incomplete_orders)
+
+    # Prepare bill details
+    bill_details = {
+        "user_name": user_name,
+        "order_id": incomplete_orders[0].order_id,  # All should have the same order_id
+        "items": [
+            {
+                "food_id": order.food_id,
+                "quantity": order.quantity,
+                "price": order.price,
+                "address": order.address,
+                "pin": order.pin,
+            }
+            for order in incomplete_orders
+        ],
+        "total_amount": total_amount,
+    }
+
+    return {"detail": "Bill generated successfully", "bill": bill_details}
+
+
 @app.post("/cart_checkout/{order_id}/{pin}", tags=["Order Management"])
 def checkout(order_id: str, pin: int, db: Session = Depends(get_db)):
     cart_items = db.query(models.Order).filter(models.Order.order_id == order_id, models.Order.pin == pin, models.Order.complete == "0").all()
