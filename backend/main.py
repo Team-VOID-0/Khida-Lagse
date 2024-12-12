@@ -410,33 +410,64 @@ def delete_food(food_id: int, db: Session = Depends(get_db)):
 # ==================
 @app.post("/add_to_cart/", tags=["Order Management"])
 def order_food(order_food_item: schemas.Order, db: Session = Depends(get_db)):
-    pin = str(random.randint(10000, 99999))
-    order_id = str(random.randint(100, 999))
+    # Check if the user exists
     get_user_name = db.query(models.User).filter(models.User.user_name == order_food_item.user_name).first()
     if get_user_name is None:
         return {"detail": "Please do the registration first"}
+
+    # Check if the food item exists
+    food_item = db.query(models.Food).filter(models.Food.id == order_food_item.food_id).first()
+    if food_item is None:
+        return {"detail": "Food item not found"}
+
+    # Check for an incomplete order for this user
+    incomplete_order = db.query(models.Order).filter(
+        models.Order.user_name == order_food_item.user_name,
+        models.Order.complete == "0"  # Incomplete orders
+    ).first()
+
+    # Reuse order_id if there's an incomplete order, otherwise generate a new one
+    if incomplete_order:
+        order_id = incomplete_order.order_id
     else:
-        food_item = db.query(models.Food).filter(models.Food.id == order_food_item.food_id).first()
-        if food_item is None:
-            return {"detail": "Food item not found"}
-        else:
-            total_price = order_food_item.quantity * food_item.price
+        order_id = str(random.randint(1000, 9999))
 
-            order_details = models.Order(order_id = order_id,
-                                        user_name=order_food_item.user_name,
-                                        food_id=order_food_item.food_id,
-                                        quantity=order_food_item.quantity,
-                                        price=total_price,
-                                        address=order_food_item.address,
-                                        pin = pin,
-                                        complete = "0")
-            db.add(order_details)
-            db.commit()
-            db.refresh(order_details)
-            return {"detail": "Order accepted", "order": order_details}
+    # Check if the user has already ordered the same food within the current order_id
+    existing_order = db.query(models.Order).filter(
+        models.Order.user_name == order_food_item.user_name,
+        models.Order.food_id == order_food_item.food_id,
+        models.Order.complete == "0",  # Incomplete orders
+        models.Order.order_id == order_id  # Same order_id
+    ).first()
+
+    if existing_order:
+        # Update the existing order
+        existing_order.quantity += order_food_item.quantity
+        existing_order.price += order_food_item.quantity * food_item.price
+        db.commit()
+        db.refresh(existing_order)
+        return {"detail": "Order updated", "order": existing_order}
+    else:
+        # Create a new order entry under the same order_id
+        total_price = order_food_item.quantity * food_item.price
+
+        order_details = models.Order(
+            order_id=order_id,
+            user_name=order_food_item.user_name,
+            food_id=order_food_item.food_id,
+            quantity=order_food_item.quantity,
+            price=total_price,
+            address=order_food_item.address,
+            pin=str(random.randint(10000, 99999)),
+            complete="0"
+        )
+        db.add(order_details)
+        db.commit()
+        db.refresh(order_details)
+        return {"detail": "Order accepted", "order": order_details}
 
 
-@app.post("/cart_checkout/{order_id}", tags=["Order Management"])
+@app.post("/cart_checkout/{order_id}/{pin}", tags=["Order Management"])
 def checkout(order_id: str, pin: int, db: Session = Depends(get_db)):
     cart_items = db.query(models.Order).filter(models.Order.order_id == order_id, models.Order.pin == pin, models.Order.complete == "0").all()
     if not cart_items:
