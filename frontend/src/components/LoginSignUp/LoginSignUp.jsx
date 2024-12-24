@@ -34,32 +34,49 @@ const LoginPopup = ({ setShowLogin, currentState, setCurrentState }) => {
         if (data.detail === 'OTP Sent') {
             setOtpVisible(true);
         } else {
-            alert(data.detail); // Handle errors
-        }
-    };
-
-    const handleLogin = async () => {
-        const response = await fetch('http://localhost:8000/user_login/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                user_name: formData.user_name,
-                password: formData.password,
-            }),
-        });
-        const data = await response.json();
-        if (data.access_token) {
-            setJwtToken(data.access_token);
-            alert('Login successful!');
-            setShowLogin(false);
-        } else {
-            setErrorMessage(data.detail || 'An error occurred');
             alert(data.detail);
         }
     };
 
+    const handleLogin = async () => {
+        try {
+            const response = await fetch(`http://localhost:8000/user_login/${formData.user_name}/${formData.password}`, {
+                method: 'GET'
+            });
+            const data = await response.json();
+            if (response.detail == "Please do the registration first") { 
+                alert('Please do the registration first!');
+                setShowLogin(false);
+            } 
+            else if (response.detail == "Login record not found for this user.") {  
+                alert('Login record not found!');
+                setShowLogin(false);
+            } 
+            else if (response.detail == "Invalid username or password.") {  
+                alert('Invalid username or password!');
+                setShowLogin(false);
+            } 
+            else if (response.detail == "Activate your account by using OTP.") {  
+                alert('Activate your account by using OTP!');
+                setShowLogin(false);
+            } 
+            else if (response.ok) {  
+                setJwtToken(data.access_token);
+                localStorage.setItem("access_token", data.access_token);
+                alert('Login successful!');
+                setShowLogin(false);
+            } else {
+                setErrorMessage(data.detail || 'An error occurred');
+                alert(data.detail);
+            }
+        } catch (error) {
+            console.error('Error logging in:', error);
+            setErrorMessage('Failed to login, please try again.');
+        }
+    };
+    
     const handleVerifyOtp = async () => {
-        const response = await fetch(`/verify_otp/${formData.email}/${otp}`, {
+        const response = await fetch(`http://localhost:8000/verify_otp/${formData.email}/${otp}`, {
             method: 'GET',
         });
         const data = await response.json();

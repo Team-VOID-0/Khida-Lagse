@@ -1,21 +1,6 @@
-import React, { useState, useMemo } from 'react';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableContainer, 
-  TableHead, 
-  TableRow,
-  Paper,
-  Button,
-  Typography,
-  Box,
-  TextField,
-  Select,
-  MenuItem,
-  useMediaQuery,
-  useTheme
-} from '@mui/material';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button, Typography, Box, TextField, useMediaQuery, useTheme } from '@mui/material';
+import axios from 'axios';
 
 const FoodItemList = () => {
   const theme = useTheme();
@@ -23,67 +8,50 @@ const FoodItemList = () => {
   const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [foodItems, setFoodItems] = useState([
-    { 
-      id: 1, 
-      name: 'Margherita Pizza', 
-      category: 'Pizza', 
-      price: '$12.99', 
-      status: 'Available', 
-      description: 'Classic pizza with tomato sauce, mozzarella, and basil',
-      isEditing: false
-    },
-    { 
-      id: 2, 
-      name: 'Caesar Salad', 
-      category: 'Salad', 
-      price: '$8.50', 
-      status: 'Available', 
-      description: 'Crisp romaine lettuce with Caesar dressing',
-      isEditing: false
-    },
-    { 
-      id: 3, 
-      name: 'Chicken Burger', 
-      category: 'Burger', 
-      price: '$14.25', 
-      status: 'Low Stock', 
-      description: 'Grilled chicken burger with special sauce',
-      isEditing: false
-    },
-    { 
-      id: 4, 
-      name: 'Vegetable Pasta', 
-      category: 'Pasta', 
-      price: '$11.75', 
-      status: 'Available', 
-      description: 'Fresh pasta with seasonal vegetables',
-      isEditing: false
-    },
-    { 
-      id: 5, 
-      name: 'Chocolate Brownie', 
-      category: 'Dessert', 
-      price: '$6.50', 
-      status: 'Out of Stock', 
-      description: 'Rich chocolate brownie with vanilla ice cream',
-      isEditing: false
-    },
-  ]);
+  const [foodItems, setFoodItems] = useState([]);
+
+  useEffect(() => {
+    axios.get('http://localhost:8000/foods/')
+      .then(response => {
+        if (Array.isArray(response.data)) {
+          setFoodItems(response.data.map(item => ({
+            ...item,
+            price: item.price.toString()
+          })));
+        } else {
+          console.error('Unexpected data format:', response.data);
+        }
+      })
+      .catch(error => console.error('Error fetching food items:', error));
+  }, []);
 
   const filteredFoodItems = useMemo(() => {
     return foodItems.filter(item => 
       item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.price.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.status.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.description.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [foodItems, searchTerm]);
 
   const handleDeleteItem = (itemId) => {
-    setFoodItems(foodItems.filter(item => item.id !== itemId));
+    if (!window.confirm('Are you sure you want to delete this item?')) {
+      return;
+    }
+  
+    axios.delete(`http://localhost:8000/food/${itemId}/`)
+      .then(response => {
+        console.log(response.data);
+        // Update the local state to reflect deletion
+        setFoodItems(foodItems.filter(item => item.id !== itemId));
+        alert('Food item deleted successfully!');
+      })
+      .catch(error => {
+        console.error('Error deleting food item:', error.response?.data || error.message);
+        alert('Failed to delete the food item. Please try again.');
+      });
   };
+  
 
   const handleEditItem = (itemId) => {
     setFoodItems(foodItems.map(item => 
@@ -94,12 +62,43 @@ const FoodItemList = () => {
   };
 
   const handleSaveItem = (itemId) => {
-    setFoodItems(foodItems.map(item => 
-      item.id === itemId 
-        ? { ...item, isEditing: false, originalItem: undefined }
-        : item
-    ));
+    const itemToSave = foodItems.find(item => item.id === itemId);
+    if (!itemToSave) return;
+    console.log(itemId);
+  
+    // Basic validation
+    if (!itemToSave.name.trim() || !itemToSave.price.trim() || !itemToSave.category.trim()) {
+      alert('Please ensure all fields are filled out correctly.');
+      return;
+    }
+    console.log({
+      name: itemToSave.name.trim(),
+      price: itemToSave.price.trim(),
+      description: itemToSave.description.trim(),
+      category: itemToSave.category.trim()
+    })
+    
+    axios.put(`http://localhost:8000/food/${itemId}/`, {
+      name: itemToSave.name.trim(),
+      price: toString(itemToSave.price).trim(),
+      description: itemToSave.description.trim(),
+      category: itemToSave.category.trim()
+    })
+      .then(response => {
+        console.log(response.data);
+        setFoodItems(foodItems.map(item =>
+          item.id === itemId
+            ? { ...item, isEditing: false, originalItem: undefined }
+            : item
+        ));
+      })
+      .catch(error => {
+        console.error('Error updating food item:', error.response?.data || error.message);
+        alert('Failed to save changes. Please check your input and try again.');
+      });
   };
+  
+  
 
   const handleCancelEdit = (itemId) => {
     setFoodItems(foodItems.map(item => 
@@ -110,6 +109,7 @@ const FoodItemList = () => {
   };
 
   const handleFieldChange = (itemId, field, value) => {
+    if (field === 'image_url') return;
     setFoodItems(foodItems.map(item => 
       item.id === itemId 
         ? { ...item, [field]: value }
@@ -163,16 +163,6 @@ const FoodItemList = () => {
                 onChange={(e) => handleFieldChange(item.id, 'price', e.target.value)}
                 margin="dense"
               />
-              <Select
-                fullWidth
-                value={item.status}
-                onChange={(e) => handleFieldChange(item.id, 'status', e.target.value)}
-                margin="dense"
-              >
-                <MenuItem value="Available">Available</MenuItem>
-                <MenuItem value="Low Stock">Low Stock</MenuItem>
-                <MenuItem value="Out of Stock">Out of Stock</MenuItem>
-              </Select>
               <TextField
                 fullWidth
                 label="Description"
@@ -182,6 +172,15 @@ const FoodItemList = () => {
                 multiline
                 rows={3}
               />
+              {/* <TextField
+                fullWidth
+                label="Image URL"
+                value={item.image_url}
+                onChange={(e) => handleFieldChange(item.id, 'image', e.target.value)}
+                margin="dense"
+                multiline
+                rows={1}
+              /> */}
               <Box sx={{ display: 'flex', gap: 1, marginTop: 1 }}>
                 <Button
                   variant="contained"
@@ -217,17 +216,11 @@ const FoodItemList = () => {
               <Typography variant="body1">
                 Price: {item.price}
               </Typography>
-              <Typography 
-                variant="body2" 
-                sx={{ 
-                  color: 
-                    item.status === 'Available' ? 'green' : 
-                    item.status === 'Low Stock' ? 'orange' : 
-                    'red'
-                }}
-              >
-                Status: {item.status}
-              </Typography>
+              {item.image && (
+                <Box sx={{ marginTop: 1 }}>
+                  <img src={item.image} alt={item.name} style={{ width: '100%', height: 'auto' }} />
+                </Box>
+              )}
               <Box sx={{ display: 'flex', gap: 1, marginTop: 1 }}>
                 <Button
                   variant="outlined"
@@ -289,8 +282,8 @@ const FoodItemList = () => {
               <TableCell>Name</TableCell>
               {!isMobile && <TableCell>Category</TableCell>}
               <TableCell>Price</TableCell>
-              <TableCell>Status</TableCell>
               {!isMobile && <TableCell>Description</TableCell>}
+              <TableCell>Image</TableCell>
               <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>
@@ -322,28 +315,18 @@ const FoodItemList = () => {
                         fullWidth
                       />
                     </TableCell>
-                    <TableCell>
-                      <Select
-                        value={item.status}
-                        onChange={(e) => handleFieldChange(item.id, 'status', e.target.value)}
-                        fullWidth
-                      >
-                        <MenuItem value="Available">Available</MenuItem>
-                        <MenuItem value="Low Stock">Low Stock</MenuItem>
-                        <MenuItem value="Out of Stock">Out of Stock</MenuItem>
-                      </Select>
-                    </TableCell>
                     {!isMobile && (
                       <TableCell>
                         <TextField
                           value={item.description}
                           onChange={(e) => handleFieldChange(item.id, 'description', e.target.value)}
                           fullWidth
-                          multiline
-                          rows={2}
                         />
                       </TableCell>
                     )}
+                    <TableCell>
+                      <img src={item.image_url} alt={item.name} style={{ width: '100px', height: 'auto' }} />
+                    </TableCell>
                     <TableCell>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                         <Button
@@ -370,34 +353,17 @@ const FoodItemList = () => {
                     <TableCell>{item.name}</TableCell>
                     {!isMobile && <TableCell>{item.category}</TableCell>}
                     <TableCell>{item.price}</TableCell>
+                    {!isMobile && <TableCell>{item.description}</TableCell>}
                     <TableCell>
-                      <Typography 
-                        variant="body2" 
-                        sx={{ 
-                          color: 
-                            item.status === 'Available' ? 'green' : 
-                            item.status === 'Low Stock' ? 'orange' : 
-                            'red'
-                        }}
-                      >
-                        {item.status}
-                      </Typography>
+                      {item.image_url && <img src={item.image_url} alt={item.name} style={{ width: '100px', height: 'auto' }} />}
                     </TableCell>
-                    {!isMobile && (
-                      <TableCell>
-                        <Typography variant="body2" noWrap>
-                          {item.description}
-                        </Typography>
-                      </TableCell>
-                    )}
                     <TableCell>
-                      <Box sx={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 1 }}>
+                      <Box sx={{ display: 'flex', gap: 1 }}>
                         <Button
                           variant="outlined"
                           color="primary"
                           size="small"
                           onClick={() => handleEditItem(item.id)}
-                          sx={{ minWidth: isMobile ? '100%' : 'auto' }}
                         >
                           EDIT
                         </Button>
@@ -406,7 +372,6 @@ const FoodItemList = () => {
                           color="error"
                           size="small"
                           onClick={() => handleDeleteItem(item.id)}
-                          sx={{ minWidth: isMobile ? '100%' : 'auto' }}
                         >
                           DELETE
                         </Button>
@@ -422,11 +387,7 @@ const FoodItemList = () => {
     </Box>
   );
 
-  return (
-    <Box sx={{ width: '100%', overflowX: 'auto' }}>
-      {isMobile ? renderMobileView() : renderTableView()}
-    </Box>
-  );
+  return isMobile || isTablet ? renderMobileView() : renderTableView();
 };
 
 export default FoodItemList;

@@ -1,445 +1,219 @@
-import React, { useState } from 'react';
-import { 
-  Container, 
-  Typography, 
-  Grid, 
-  Card, 
-  CardContent, 
-  Dialog, 
-  DialogTitle, 
-  DialogContent, 
-  TextField, 
-  Button, 
-  List, 
-  ListItem, 
-  ListItemText, 
-  IconButton,
-  Box,
-  Paper,
-  createTheme,
-  ThemeProvider,
-  useTheme
-} from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
-import LocalShippingIcon from '@mui/icons-material/LocalShipping';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-
-// Custom theme for professional look
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: '#2a6496', // Deep blue
-      light: '#4a8bc2'
-    },
-    background: {
-      default: '#f4f6f9',
-      paper: '#ffffff'
-    },
-    text: {
-      primary: '#2c3e50',
-      secondary: '#7f8c8d'
-    },
-    success: {
-      main: '#27ae60'
-    }
-  },
-  typography: {
-    fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
-    h4: {
-      fontWeight: 600,
-      color: '#2c3e50',
-      letterSpacing: '-0.5px'
-    },
-    body1: {
-      color: '#34495e'
-    }
-  },
-  components: {
-    MuiCard: {
-      styleOverrides: {
-        root: {
-          borderRadius: 12,
-          transition: 'all 0.3s ease',
-          boxShadow: '0 4px 10px rgba(0,0,0,0.08)',
-          '&:hover': {
-            transform: 'translateY(-5px)',
-            boxShadow: '0 6px 15px rgba(0,0,0,0.12)'
-          }
-        }
-      }
-    },
-    MuiDialog: {
-      styleOverrides: {
-        paper: {
-          borderRadius: 16
-        }
-      }
-    },
-    MuiPaper: {
-      styleOverrides: {
-        outlined: {
-          borderColor: 'rgba(42, 100, 150, 0.2)',
-          borderRadius: 8
-        }
-      }
-    }
-  }
-});
+import React, { useState, useEffect } from 'react';
+import './Delivery.css';
+import { jwtDecode } from 'jwt-decode';
 
 const DeliveryTaskApp = () => {
-  // Mock data for delivery tasks
-  const initialTasks = [
-    {
-      id: 1,
-      customerName: "John Doe",
-      address: "123 Main St, Cityville, Long Address State",
-      contactNumber: "+1 (555) 123-4567",
-      items: [
-        { name: "Pizza Margherita", quantity: 2 },
-        { name: "Coca Cola", quantity: 1 }
-      ],
-      totalAmount: 25.50,
-      expectedPin: "1234"
-    },
-    {
-      id: 2,
-      customerName: "Jane Smith",
-      address: "456 Oak Avenue, Townsburg, Another Long Address",
-      contactNumber: "+1 (555) 987-6543",
-      items: [
-        { name: "Burger Combo", quantity: 1 },
-        { name: "French Fries", quantity: 1 }
-      ],
-      totalAmount: 15.75,
-      expectedPin: "5678"
-    },
-    {
-      id: 3,
-      customerName: "Alex Johnson",
-      address: "789 Pine Road, Villagetown",
-      contactNumber: "+1 (555) 246-8101",
-      items: [
-        { name: "Salad", quantity: 1 },
-        { name: "Mineral Water", quantity: 2 }
-      ],
-      totalAmount: 20.25,
-      expectedPin: "9012"
-    }
-  ];
-
-  const [tasks, setTasks] = useState(initialTasks);
+  const [tasks, setTasks] = useState([]);
   const [selectedTask, setSelectedTask] = useState(null);
+  const [selectedOrderDetails, setSelectedOrderDetails] = useState(null);
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      console.error('No token found');
+      return;
+    }
+  
+    try {
+      const decoded = jwtDecode(token);
+      const userName = decoded.sub;
+      
+      const fetchTasks = async () => {
+        try {
+          const response = await fetch(`http://localhost:8000/assigned_orders/${userName}`);
+          const data = await response.json();
+          
+          const processedTasks = (Array.isArray(data) ? data : data.orders || [])
+            .map(task => ({
+              ...task,
+              user_name: task.user_name || 'Unknown Customer',
+              address: task.address || 'No address provided',
+              price: task.price || 0,
+              order_id: task.order_id,
+              complete: task.complete || 0 // Ensure complete property exists
+            }));
+            console.log(processedTasks);
+            if(processedTasks.complete === 1){
+            }
+            setTasks(processedTasks);
+        } catch (fetchError) {
+          console.error('Error fetching tasks:', fetchError);
+          setTasks([]); 
+        }
+      };
+  
+      fetchTasks();
+    } catch (error) {
+      console.error('Invalid token format', error);
+    }
+  }, []);
+
+  const fetchOrderDetails = async (orderId) => {
+    setIsLoading(true);
+    setSelectedOrderDetails(null);
+    
+    try {
+      const response = await fetch(`http://localhost:8000/order_details/${orderId}`);
+      const data = await response.json();
+      
+      if (data && data.order) {
+        setSelectedOrderDetails(data.order);
+      }
+    } catch (error) {
+      console.error('Error fetching order details:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleTaskSelect = (task) => {
     setSelectedTask(task);
+    fetchOrderDetails(task.order_id);
     setPinInput('');
     setPinError(false);
   };
 
-  const handlePinSubmit = () => {
-    if (selectedTask && pinInput === selectedTask.expectedPin) {
-      // Complete the order
-      setTasks(tasks.filter(task => task.id !== selectedTask.id));
-      setSelectedTask(null);
-    } else {
+  const handlePinSubmit = async () => {
+    if (!selectedOrderDetails) return;
+
+    try {
+      const response = await fetch(`http://localhost:8000/cart_checkout/${selectedOrderDetails.order_id}/${pinInput}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+        }
+      });
+
+      if (response.ok) {
+        // Remove the completed task from the list
+        setTasks(tasks.filter(task => task.order_id !== selectedOrderDetails.order_id));
+        setSelectedTask(null);
+        setSelectedOrderDetails(null);
+        setPinInput('');
+        setPinError(false);
+      } else {
+        // Handle potential error responses
+        const errorData = await response.json();
+        console.error('Failed to complete order:', errorData);
+        setPinError(true);
+      }
+    } catch (error) {
+      console.error('Error completing order:', error);
       setPinError(true);
     }
   };
 
+  const handleCloseModal = () => {
+    setSelectedTask(null);
+    setSelectedOrderDetails(null);
+    setPinInput('');
+    setPinError(false);
+  };
+
   return (
-    <ThemeProvider theme={theme}>
-      <Container 
-        maxWidth="lg" 
-        sx={{ 
-          backgroundColor: 'background.default', 
-          minHeight: '100vh', 
-          py: 4 
-        }}
-      >
-        <Box 
-          sx={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center', 
-            mb: 4,
-            gap: 2
-          }}
-        >
-          <LocalShippingIcon 
-            color="primary" 
-            sx={{ fontSize: 40 }} 
-          />
-          <Typography 
-            variant="h4" 
-            component="h1" 
-            align="center"
-          >
-            Delivery Tasks
-          </Typography>
-        </Box>
-        
-        {/* Responsive Grid Layout for Tasks */}
-        <Grid container spacing={3}>
-          {tasks.map(task => (
-            <Grid item xs={12} sm={6} md={4} key={task.id}>
-              <Card 
-                variant="elevation"
-                sx={{ 
-                  cursor: 'pointer', 
-                  height: '100%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between'
-                }}
+    <div className="delivery-task-app">
+      <header className="app-header">
+        <div className="header-content">
+          <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+          </svg>
+          <h1>Delivery Tasks</h1>
+        </div>
+      </header>
+
+      <main className="task-container">
+        {tasks.length === 0 ? (
+          <div className="no-tasks">
+            <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+              <polyline points="9 22 9 12 15 12 15 22"></polyline>
+            </svg>
+            <p>No delivery tasks available</p>
+          </div>
+        ) : (
+          <div className="task-grid">
+            {tasks.map(task => (
+              <div 
+                key={task.order_id} 
+                className={`task-card ${task.complete === 1 ? 'completed-task' : ''}`}
                 onClick={() => handleTaskSelect(task)}
               >
-                <CardContent>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                    <Typography 
-                      variant="subtitle1" 
-                      fontWeight="bold" 
-                      color="primary"
-                    >
-                      Order #{task.id}
-                    </Typography>
-                    <LocalShippingIcon 
-                      color="action" 
-                      sx={{ opacity: 0.6 }} 
-                    />
-                  </Box>
-                  <Typography 
-                    variant="h6" 
-                    sx={{ 
-                      mb: 1, 
-                      overflow: 'hidden', 
-                      textOverflow: 'ellipsis' 
-                    }}
-                  >
-                    {task.customerName}
-                  </Typography>
-                  <Typography 
-                    variant="body2" 
-                    color="text.secondary" 
-                    sx={{ 
-                      mb: 1, 
-                      overflow: 'hidden', 
-                      textOverflow: 'ellipsis' 
-                    }}
-                  >
-                    {task.address}
-                  </Typography>
-                  <Typography 
-                    variant="h6" 
-                    color="primary" 
-                    sx={{ fontWeight: 'bold', textAlign: 'right' }}
-                  >
-                    ${task.totalAmount.toFixed(2)}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-
-        {/* Task Details Dialog */}
-        <Dialog 
-          open={!!selectedTask} 
-          onClose={() => setSelectedTask(null)}
-          fullWidth
-          maxWidth="sm"
-          PaperProps={{
-            elevation: 4,
-            sx: {
-              borderRadius: 3
-            }
-          }}
-        >
-          {selectedTask && (
-            <>
-              <DialogTitle 
-                sx={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  alignItems: 'center',
-                  borderBottom: '1px solid',
-                  borderColor: 'divider'
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <LocalShippingIcon color="primary" />
-                  <Typography variant="h6" color="primary">
-                    Order #{selectedTask.id} Details
-                  </Typography>
-                </Box>
-                <IconButton 
-                  onClick={() => setSelectedTask(null)}
-                  edge="end"
-                  color="error"
-                >
-                  <CloseIcon />
-                </IconButton>
-              </DialogTitle>
-              <DialogContent sx={{ p: 3 }}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                  {/* Customer Details */}
-                  <Paper 
-                    variant="outlined" 
-                    sx={{ 
-                      p: 2, 
-                      backgroundColor: 'background.default' 
-                    }}
-                  >
-                    <Typography variant="subtitle1" color="primary" sx={{ mb: 1 }}>
-                      Customer Information
-                    </Typography>
-                    <Grid container spacing={1}>
-                      <Grid item xs={12} sm={6}>
-                        <Typography variant="body1">
-                          <strong>Name:</strong> {selectedTask.customerName}
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <Typography variant="body1">
-                          <strong>Contact:</strong> {selectedTask.contactNumber}
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={12}>
-                        <Typography variant="body1">
-                          <strong>Address:</strong> {selectedTask.address}
-                        </Typography>
-                      </Grid>
-                    </Grid>
-                  </Paper>
-
-                  {/* Order Items */}
-                  <Paper 
-                    variant="outlined" 
-                    sx={{ 
-                      p: 2, 
-                      backgroundColor: 'background.default' 
-                    }}
-                  >
-                    <Typography 
-                      variant="subtitle1" 
-                      color="primary" 
-                      sx={{ mb: 2 }}
-                    >
-                      Order Items
-                    </Typography>
-                    <List dense>
-                      {selectedTask.items.map((item, index) => (
-                        <ListItem 
-                          key={index} 
-                          disableGutters
-                          sx={{ 
-                            borderBottom: index < selectedTask.items.length - 1 
-                              ? '1px solid' 
-                              : 'none', 
-                            borderColor: 'divider',
-                            py: 1
-                          }}
-                        >
-                          <ListItemText 
-                            primary={item.name}
-                            primaryTypographyProps={{ 
-                              variant: 'body1',
-                              color: 'text.primary'
-                            }}
-                            secondary={`Quantity: ${item.quantity}`}
-                            secondaryTypographyProps={{ 
-                              color: 'text.secondary'
-                            }}
-                          />
-                        </ListItem>
-                      ))}
-                    </List>
-                    <Typography 
-                      variant="h6" 
-                      color="primary" 
-                      align="right" 
-                      sx={{ mt: 2, fontWeight: 'bold' }}
-                    >
-                      Total: ${selectedTask.totalAmount.toFixed(2)}
-                    </Typography>
-                  </Paper>
-
-                  {/* PIN Input */}
-                  <TextField
-                    fullWidth
-                    label="Enter Customer PIN to Complete Delivery"
-                    variant="outlined"
-                    value={pinInput}
-                    onChange={(e) => {
-                      const value = e.target.value.replace(/\D/g, '');
-                      setPinInput(value.slice(0, 4));
-                    }}
-                    error={pinError}
-                    helperText={pinError ? "Incorrect PIN. Please try again." : ""}
-                    inputProps={{ 
-                      maxLength: 4,
-                      inputMode: 'numeric'
-                    }}
-                    color="primary"
-                  />
-
-                  {/* Complete Delivery Button */}
-                  <Button 
-                    fullWidth 
-                    variant="contained" 
-                    color="primary"
-                    onClick={handlePinSubmit}
-                    disabled={pinInput.length !== 4}
-                    startIcon={<CheckCircleIcon />}
-                    sx={{
-                      py: 1.5,
-                      borderRadius: 2,
-                      textTransform: 'none',
-                      fontSize: '1rem'
-                    }}
-                  >
-                    Complete Delivery
-                  </Button>
-                </Box>
-              </DialogContent>
-            </>
-          )}
-        </Dialog>
-
-        {/* Empty State */}
-        {tasks.length === 0 && (
-          <Box 
-            sx={{ 
-              display: 'flex', 
-              flexDirection: 'column', 
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              height: '50vh',
-              textAlign: 'center'
-            }}
-          >
-            <CheckCircleIcon 
-              color="success" 
-              sx={{ fontSize: 80, mb: 2, opacity: 0.7 }} 
-            />
-            <Typography 
-              variant="h5" 
-              color="text.secondary" 
-              sx={{ mb: 1 }}
-            >
-              All Deliveries Completed
-            </Typography>
-            <Typography 
-              variant="body1" 
-              color="text.secondary"
-            >
-              You have no pending delivery tasks
-            </Typography>
-          </Box>
+                <div className="task-card-header">
+                  <span className="order-number">Order #{task.order_id}</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="1" y="3" width="15" height="13"></rect>
+                    <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
+                    <circle cx="5.5" cy="18.5" r="2.5"></circle>
+                    <circle cx="18.5" cy="18.5" r="2.5"></circle>
+                  </svg>
+                </div>
+                <h3>{task.user_name}</h3>
+                <p className="task-address">{task.address}</p>
+                <div className="task-price">${task.price.toFixed(2)}</div>
+              </div>
+            ))}
+          </div>
         )}
-      </Container>
-    </ThemeProvider>
+      </main>
+
+      {selectedTask && selectedOrderDetails && (
+        <div className="modal-overlay" onClick={handleCloseModal}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Order #{selectedOrderDetails.order_id} Details</h2>
+              <button className="close-btn" onClick={handleCloseModal}>
+                &times;
+              </button>
+            </div>
+            <div className="modal-content">
+              <section className="customer-info">
+                <h3>Customer Information</h3>
+                <p><strong>Name:</strong> {selectedOrderDetails.user_name}</p>
+                <p><strong>Address:</strong> {selectedOrderDetails.address}</p>
+              </section>
+
+              <section className="order-items">
+                <h3>Order Item</h3>
+                <ul>
+                  <li>
+                    {selectedOrderDetails.food_name} 
+                    <span>Quantity: {selectedOrderDetails.quantity}</span>
+                  </li>
+                </ul>
+              </section>
+
+              <section className="order-details">
+                <h3>Order Details</h3>
+                <p><strong>Date:</strong> {new Date(selectedOrderDetails.date).toLocaleString()}</p>
+                <p><strong>Total Price:</strong> ${selectedOrderDetails.price.toFixed(2)}</p>
+              </section>
+
+              <section className="pin-section">
+                <h3>Enter PIN to Complete</h3>
+                <input 
+                  type="password" 
+                  placeholder="Enter PIN" 
+                  value={pinInput}
+                  onChange={(e) => setPinInput(e.target.value)}
+                  className={pinError ? 'error' : ''}
+                  disabled={selectedTask.complete === 1} // Disable input if task is complete
+                />
+                {pinError && <p className="error-text">Invalid PIN or Order Completion Failed!</p>}
+                {selectedTask.complete === 1 && <p className="completed-text">Order Already Completed</p>}
+                {selectedTask.complete !== 1 && (
+                  <button onClick={handlePinSubmit}>Complete Order</button>
+                )}
+              </section>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 
