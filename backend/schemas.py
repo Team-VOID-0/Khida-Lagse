@@ -1,6 +1,7 @@
 from symtable import Class
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Union
+from fastapi import UploadFile 
 
 class Token(BaseModel):
     access_token: str
@@ -14,11 +15,14 @@ class UserBase(BaseModel):
     password: str
 
 class UserUpdate(BaseModel):
-    user_id: str
+    user_name: str  # Required for identifying the user
     name: Optional[str] = None
-    user_name: Optional[str] = None
     email: Optional[str] = None
     mobile_number: Optional[str] = None
+
+class ChangePasswordRequest(BaseModel):
+    user_name: str
+    new_password: str
 
 class CheckUser(BaseModel):
     user_name: str
@@ -34,9 +38,10 @@ class UserDelete(BaseModel):
 
 class FoodCreate(BaseModel):
     name: str
-    price: float
+    price: str
     description: str
     category: str
+    # image: Union[bytes, None] 
 
 
 class Order(BaseModel):
@@ -44,7 +49,10 @@ class Order(BaseModel):
     food_id: int
     quantity: int
     address: str
-    
+
+class AssignDeliveryman(BaseModel):
+    order_id: int
+    deliveryman_user_id: int
 
 class FoodResponse(BaseModel):
     id: int
@@ -57,3 +65,6 @@ class FoodResponse(BaseModel):
         orm_mode = True
 
 
+class UpdateRoleRequest(BaseModel):
+    user_id: str  # User's ID
+    new_role: str  # New role to assign to the user

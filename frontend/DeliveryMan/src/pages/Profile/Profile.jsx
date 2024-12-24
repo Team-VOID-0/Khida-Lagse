@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
+import {jwtDecode} from 'jwt-decode'; // Install this library using `npm install jwt-decode`
 import { 
   Box, 
   Typography, 
@@ -23,25 +25,25 @@ import {
   Email as EmailIcon,
   Phone as PhoneIcon 
 } from '@mui/icons-material';
-
+import axios from 'axios';
 const AdminProfile = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  // Admin profile data
+  // State for Admin profile data
   const [adminData, setAdminData] = useState({
-    name: 'John Doe',
-    email: 'john.doe@example.com',
-    phone: '+1 (555) 123-4567',
-    role: 'Super Admin',
+    name: '',
+    email: '',
+    phone: '',
+    role: 'Admin',
     avatar: null
   });
 
-  // Edit profile modal state
+  // Modal states
   const [openProfileEdit, setOpenProfileEdit] = useState(false);
   const [openPasswordEdit, setOpenPasswordEdit] = useState(false);
 
-  // Temporary edit state
+  // Temporary edit states
   const [editedData, setEditedData] = useState({ ...adminData });
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
@@ -49,7 +51,7 @@ const AdminProfile = () => {
     confirmPassword: ''
   });
 
-  // Handle profile image upload
+  // Function to handle profile image upload
   const handleAvatarUpload = (event) => {
     const file = event.target.files[0];
     if (file) {
@@ -60,6 +62,66 @@ const AdminProfile = () => {
       reader.readAsDataURL(file);
     }
   };
+
+  // Fetch admin data from the token
+  useEffect(() => {
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      try {
+        const decoded = jwtDecode(token);
+        // Assuming the token contains fields `name`, `email`, and `phone`
+        setAdminData({
+          name: decoded.name,
+          email: decoded.email,
+          phone: decoded.mobile,
+          role: decoded.role,
+          avatar: null
+        });
+      } catch (error) {
+        console.error('Invalid token', error);
+      }
+    }
+  }, []);
+
+  const handleSaveChanges = async () => {
+    const token = localStorage.getItem("access_token");
+  
+    try {
+      const payload = {
+        user_name: jwtDecode(token).sub,
+        user_id: "123",
+        name: editedData.name,
+        email: editedData.email,
+        mobile_number: editedData.phone, // Confirm this field name with the backend
+      };
+  
+      console.log("Payload being sent:", payload);
+  
+      const response = await axios.put(
+        "http://localhost:8000/user_update/",
+        payload,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+  
+      if (response.status === 200) {
+        setAdminData(editedData); 
+        setOpenProfileEdit(false);
+        alert("Profile updated successfully!");
+      }
+    } catch (error) {
+      console.error("Error updating profile:", error.response?.data || error.message);
+      alert(
+        error.response?.data?.detail[0]?.msg || 
+        "Failed to update profile. Please check the input fields."
+      );
+    }
+  };
+  
 
   // Profile Edit Modal
   const ProfileEditModal = () => (
@@ -150,11 +212,8 @@ const AdminProfile = () => {
         >
           Cancel
         </Button>
-        <Button 
-          onClick={() => {
-            setAdminData(editedData);
-            setOpenProfileEdit(false);
-          }}
+        <Button
+          onClick={handleSaveChanges}
           color="primary"
           variant="contained"
         >
@@ -172,86 +231,7 @@ const AdminProfile = () => {
       fullWidth
       maxWidth="sm"
     >
-      <DialogTitle>Change Password</DialogTitle>
-      <DialogContent>
-        <Grid container spacing={2}>
-          <Grid item xs={12}>
-            <TextField
-              fullWidth
-              type="password"
-              label="Current Password"
-              value={passwordData.currentPassword}
-              onChange={(e) => setPasswordData(prev => ({ 
-                ...prev, 
-                currentPassword: e.target.value 
-              }))}
-              InputProps={{
-                startAdornment: <LockIcon sx={{ mr: 1, color: 'action.active' }} />
-              }}
-            />
-          </Grid>
-          <Grid item xs={12}>
-            <TextField
-              fullWidth
-              type="password"
-              label="New Password"
-              value={passwordData.newPassword}
-              onChange={(e) => setPasswordData(prev => ({ 
-                ...prev, 
-                newPassword: e.target.value 
-              }))}
-              InputProps={{
-                startAdornment: <LockIcon sx={{ mr: 1, color: 'action.active' }} />
-              }}
-              helperText="Password must be at least 8 characters"
-            />
-          </Grid>
-          <Grid item xs={12}>
-            <TextField
-              fullWidth
-              type="password"
-              label="Confirm New Password"
-              value={passwordData.confirmPassword}
-              onChange={(e) => setPasswordData(prev => ({ 
-                ...prev, 
-                confirmPassword: e.target.value 
-              }))}
-              InputProps={{
-                startAdornment: <LockIcon sx={{ mr: 1, color: 'action.active' }} />
-              }}
-              error={passwordData.newPassword !== passwordData.confirmPassword}
-              helperText={
-                passwordData.newPassword !== passwordData.confirmPassword 
-                  ? "Passwords do not match" 
-                  : ""
-              }
-            />
-          </Grid>
-        </Grid>
-      </DialogContent>
-      <DialogActions>
-        <Button 
-          onClick={() => setOpenPasswordEdit(false)}
-          color="secondary"
-        >
-          Cancel
-        </Button>
-        <Button 
-          onClick={() => {
-            // TODO: Implement password change logic
-            setOpenPasswordEdit(false);
-          }}
-          color="primary"
-          variant="contained"
-          disabled={
-            !passwordData.currentPassword || 
-            !passwordData.newPassword || 
-            passwordData.newPassword !== passwordData.confirmPassword
-          }
-        >
-          Change Password
-        </Button>
-      </DialogActions>
+      {/* Password modal content */}
     </Dialog>
   );
 
@@ -326,19 +306,6 @@ const AdminProfile = () => {
                 </Typography>
                 <Typography variant="body1">
                   {adminData.phone}
-                </Typography>
-              </Box>
-            </Box>
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-              <LockIcon sx={{ mr: 2, color: 'action.active' }} />
-              <Box>
-                <Typography variant="subtitle2" color="text.secondary">
-                  Access Level
-                </Typography>
-                <Typography variant="body1">
-                  {adminData.role}
                 </Typography>
               </Box>
             </Box>

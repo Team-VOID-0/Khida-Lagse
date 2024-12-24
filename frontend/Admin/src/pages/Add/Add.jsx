@@ -1,113 +1,160 @@
 // import React, { useState } from 'react';
-// import { Button, TextField, MenuItem, Select, InputLabel, FormControl, TextareaAutosize } from '@mui/material';
+// import { 
+//   Box, 
+//   Button, 
+//   TextField, 
+//   Typography, 
+//   Paper, 
+//   useMediaQuery, 
+//   useTheme 
+// } from '@mui/material';
 
-// const AddFoodItem = () => {
-//   const [foodItem, setFoodItem] = useState({
+// const AddFoodItem = ({ onAddItem }) => {
+//   const theme = useTheme();
+//   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+//   const [newItem, setNewItem] = useState({
 //     name: '',
-//     price: '',
 //     category: '',
+//     price: '',
 //     description: '',
-//     image: null
+//     image: null, // For storing the uploaded image file
 //   });
 
-//   const handleInputChange = (e) => {
-//     const { name, value } = e.target;
-//     setFoodItem(prev => ({
+//   const handleInputChange = (field, value) => {
+//     setNewItem(prev => ({
 //       ...prev,
-//       [name]: value
+//       [field]: value
 //     }));
 //   };
 
 //   const handleImageUpload = (e) => {
-//     const file = e.target.files[0];
-//     setFoodItem(prev => ({
+//     const file = e.target.files[0]; // Get the first uploaded file
+//     setNewItem(prev => ({
 //       ...prev,
 //       image: file
 //     }));
 //   };
 
-//   const handleSubmit = (e) => {
-//     e.preventDefault();
-//     // Add logic to submit the food item
-//     console.log('Food Item Submitted:', foodItem);
+//   const handleAddItem = () => {
+//     // Basic validation
+//     if (!newItem.name || !newItem.price) {
+//       alert('Name and price are required!');
+//       return;
+//     }
+
+//     // Generate a unique ID (in a real app, this would typically come from a backend)
+//     const newItemWithId = {
+//       ...newItem,
+//       id: Date.now(), // Simple way to generate a unique ID
+//       isEditing: false
+//     };
+
+//     // Call the parent component's add item method
+//     onAddItem(newItemWithId);
+
+//     // Reset the form
+//     setNewItem({
+//       name: '',
+//       category: '',
+//       price: '',
+//       description: '',
+//       image: null,
+//     });
 //   };
 
 //   return (
-//     <div className="p-6 max-w-2xl mx-auto">
-//       <h2 className="text-2xl font-bold mb-6">Add New Food Item</h2>
-//       <form onSubmit={handleSubmit} className="space-y-4" encType="multipart/form-data">
-//         <div>
-//           <TextField
-//             label="Food Item Name"
-//             id="name"
-//             name="name"
-//             value={foodItem.name}
-//             onChange={handleInputChange}
-//             fullWidth
-//             required
-//           />
-//         </div>
+//     <Box 
+//       sx={{ 
+//         width: '100%', 
+//         display: 'flex', 
+//         justifyContent: 'center', 
+//         padding: 2 
+//       }}
+//     >
+//       <Paper 
+//         elevation={3} 
+//         sx={{ 
+//           width: isMobile ? '100%' : '600px', 
+//           padding: 3,
+//           display: 'flex',
+//           flexDirection: 'column',
+//           gap: 2
+//         }}
+//       >
+//         <Typography 
+//           variant="h6" 
+//           sx={{ 
+//             textAlign: 'center', 
+//             marginBottom: 2 
+//           }}
+//         >
+//           Add New Food Item
+//         </Typography>
+        
+//         <TextField
+//           fullWidth
+//           label="Name"
+//           value={newItem.name}
+//           onChange={(e) => handleInputChange('name', e.target.value)}
+//           required
+//           margin="dense"
+//         />
+        
+//         <TextField
+//           fullWidth
+//           label="Category"
+//           value={newItem.category}
+//           onChange={(e) => handleInputChange('category', e.target.value)}
+//           margin="dense"
+//         />
+        
+//         <TextField
+//           fullWidth
+//           label="Price"
+//           value={newItem.price}
+//           onChange={(e) => handleInputChange('price', e.target.value)}
+//           required
+//           margin="dense"
+//           placeholder="$XX.XX"
+//         />
 
-//         <div>
-//           <TextField
-//             label="Price"
-//             id="price"
-//             name="price"
-//             type="number"
-//             value={foodItem.price}
-//             onChange={handleInputChange}
-//             fullWidth
-//             required
-//           />
-//         </div>
+//         {/* Image Upload Field */}
+//         <TextField
+//           fullWidth
+//           type="file"
+//           inputProps={{ accept: 'image/*' }} // Allow only image files
+//           onChange={handleImageUpload}
+//           margin="dense"
+//           helperText={newItem.image ? `Selected file: ${newItem.image.name}` : 'Upload an image for the food item'}
+//         />
 
-//         <div>
-//           <FormControl fullWidth>
-//             <InputLabel>Category</InputLabel>
-//             <Select
-//               name="category"
-//               value={foodItem.category}
-//               onChange={(e) => handleInputChange(e)}
-//               required
-//             >
-//               <MenuItem value="appetizer">Appetizer</MenuItem>
-//               <MenuItem value="main-course">Main Course</MenuItem>
-//               <MenuItem value="dessert">Dessert</MenuItem>
-//               <MenuItem value="beverage">Beverage</MenuItem>
-//             </Select>
-//           </FormControl>
-//         </div>
-
-//         <div>
-//           <TextareaAutosize
-//             minRows={4}
-//             name="description"
-//             value={foodItem.description}
-//             onChange={handleInputChange}
-//             placeholder="Enter food item description"
-//             style={{ width: '100%', padding: '8px' }}
-//           />
-//         </div>
-
-//         <div>
-//           <input
-//             type="file"
-//             id="image"
-//             name="image"
-//             accept="image/*"
-//             onChange={handleImageUpload}
-//           />
-//         </div>
-
-//         <Button type="submit" variant="contained" color="primary" fullWidth>
-//           Add Food Item
+//         <TextField
+//           fullWidth
+//           label="Description"
+//           value={newItem.description}
+//           onChange={(e) => handleInputChange('description', e.target.value)}
+//           margin="dense"
+//           multiline
+//           rows={3}
+//         />
+        
+//         <Button
+//           variant="contained"
+//           color="primary"
+//           fullWidth
+//           onClick={handleAddItem}
+//           sx={{ marginTop: 2 }}
+//         >
+//           ADD ITEM
 //         </Button>
-//       </form>
-//     </div>
+//       </Paper>
+//     </Box>
 //   );
 // };
 
 // export default AddFoodItem;
+
 
 
 import React, { useState } from 'react';
@@ -117,10 +164,9 @@ import {
   TextField, 
   Typography, 
   Paper, 
-  Select, 
-  MenuItem,
-  useMediaQuery,
-  useTheme
+  MenuItem, 
+  useMediaQuery, 
+  useTheme 
 } from '@mui/material';
 
 const AddFoodItem = ({ onAddItem }) => {
@@ -131,73 +177,98 @@ const AddFoodItem = ({ onAddItem }) => {
     name: '',
     category: '',
     price: '',
-    status: 'Available',
-    description: ''
+    description: '',
+    image: null, // For storing the uploaded image file
   });
 
+  const categories = [
+    'Salad',
+    'Rolls',
+    'Desserts',
+    'Sandwich',
+    'Cake',
+    'Pure Veg',
+    'Pasta',
+    'Noodles',
+  ];
+
   const handleInputChange = (field, value) => {
-    setNewItem(prev => ({
+    setNewItem((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   };
 
-  const handleAddItem = () => {
-    // Basic validation
-    if (!newItem.name || !newItem.price) {
-      alert('Name and price are required!');
-      return;
-    }
-
-    // Generate a unique ID (in a real app, this would typically come from a backend)
-    const newItemWithId = {
-      ...newItem,
-      id: Date.now(), // Simple way to generate a unique ID
-      isEditing: false
-    };
-
-    // Call the parent component's add item method
-    onAddItem(newItemWithId);
-
-    // Reset the form
-    setNewItem({
-      name: '',
-      category: '',
-      price: '',
-      status: 'Available',
-      description: ''
-    });
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0]; // Get the first uploaded file
+    setNewItem((prev) => ({
+      ...prev,
+      image: file,
+    }));
   };
 
+  const handleAddItem = async () => {
+    if (!newItem.name || !newItem.price || !newItem.description || !newItem.category || !newItem.image) {
+        alert("All fields are required.");
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append("name", newItem.name);
+    formData.append("category", newItem.category);
+    formData.append("price", parseFloat(newItem.price)); // Ensure price is a float
+    formData.append("description", newItem.description);
+    formData.append("image", newItem.image); // Must be a File object
+
+    try {
+        const response = await fetch("http://127.0.0.1:8000/food/", {
+            method: "POST",
+            body: formData, // Sending FormData
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        alert("Food item added successfully!");
+        console.log("Response:", data);
+    } catch (error) {
+        console.error("Error adding food item:", error);
+        alert("Failed to add food item.");
+    }
+};
+
+
   return (
-    <Box 
-      sx={{ 
-        width: '100%', 
-        display: 'flex', 
-        justifyContent: 'center', 
-        padding: 2 
+    <Box
+      sx={{
+        width: '100%',
+        display: 'flex',
+        justifyContent: 'center',
+        padding: 2,
       }}
     >
-      <Paper 
-        elevation={3} 
-        sx={{ 
-          width: isMobile ? '100%' : '600px', 
+      <Paper
+        elevation={3}
+        sx={{
+          width: isMobile ? '100%' : '600px',
           padding: 3,
           display: 'flex',
           flexDirection: 'column',
-          gap: 2
+          gap: 2,
         }}
       >
-        <Typography 
-          variant="h6" 
-          sx={{ 
-            textAlign: 'center', 
-            marginBottom: 2 
+        <Typography
+          variant="h6"
+          sx={{
+            textAlign: 'center',
+            marginBottom: 2,
           }}
         >
           Add New Food Item
         </Typography>
-        
+
         <TextField
           fullWidth
           label="Name"
@@ -206,15 +277,23 @@ const AddFoodItem = ({ onAddItem }) => {
           required
           margin="dense"
         />
-        
+
         <TextField
           fullWidth
+          select
           label="Category"
           value={newItem.category}
           onChange={(e) => handleInputChange('category', e.target.value)}
+          required
           margin="dense"
-        />
-        
+        >
+          {categories.map((category) => (
+            <MenuItem key={category} value={category}>
+              {category}
+            </MenuItem>
+          ))}
+        </TextField>
+
         <TextField
           fullWidth
           label="Price"
@@ -224,18 +303,21 @@ const AddFoodItem = ({ onAddItem }) => {
           margin="dense"
           placeholder="$XX.XX"
         />
-        
-        <Select
+
+        {/* Image Upload Field */}
+        <TextField
           fullWidth
-          value={newItem.status}
-          onChange={(e) => handleInputChange('status', e.target.value)}
+          type="file"
+          inputProps={{ accept: 'image/*' }} // Allow only image files
+          onChange={handleImageUpload}
           margin="dense"
-        >
-          <MenuItem value="Available">Available</MenuItem>
-          <MenuItem value="Low Stock">Low Stock</MenuItem>
-          <MenuItem value="Out of Stock">Out of Stock</MenuItem>
-        </Select>
-        
+          helperText={
+            newItem.image
+              ? `Selected file: ${newItem.image.name}`
+              : 'Upload an image for the food item'
+          }
+        />
+
         <TextField
           fullWidth
           label="Description"
@@ -245,7 +327,7 @@ const AddFoodItem = ({ onAddItem }) => {
           multiline
           rows={3}
         />
-        
+
         <Button
           variant="contained"
           color="primary"

@@ -1,5 +1,6 @@
-from sqlalchemy import Column, ForeignKey, Integer, Float, String, LargeBinary
+from sqlalchemy import Column, ForeignKey, Integer, Float, String, LargeBinary, DateTime
 from database import Base
+from datetime import datetime
 
 
 class User(Base):
@@ -55,3 +56,6 @@ class Order(Base):
     address = Column(String(255), nullable=False)
     pin = Column(Integer, nullable=False)
     complete = Column(String(10), nullable=False)
+    assigned_deliveryman = Column(String(255), nullable=True)
+    date = Column(DateTime, default=datetime.utcnow)
+
